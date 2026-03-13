@@ -32,7 +32,7 @@
         var answer = ishuman ? ishuman.trim().toLowerCase() : null;
 
         if (answer === "no" || answer === "nope" || answer === "nah") {
-            alert("We can already see that you are. Now We can also see that you like to tell lies. We urge you caution: you can only lie to yourself here, and it may affect what you leave with.");
+            alert("We can already see that you are. Now we can also see that you like to tell lies. We urge you caution: you can only lie to yourself here, and it may affect what you leave with.");
             ProductNum += "1";
         }
         else if (answer === "yes" || answer === "y" || answer === "yeah" || answer === "yep") {
@@ -90,8 +90,8 @@
                     case "3":
                         alert(
                             "What you deserve is determined by a combination of our own justice, " +
-                            "your culture's justice, and your own internal sense of right and wrong. " +
-                            "You may deserve something vastly different than you believe."
+                            "your culture's justice, and your internal sense of right and wrong. " +
+                            "You may deserve something vastly different from what you believe."
                         );
                         break;
 
@@ -179,13 +179,12 @@
             var q2;
             do {
                 q2 = q2 = prompt(
-                "Insert Question 2 text here:\n" +
                 "You are a military officer stationed at a nuclear terminal. A sudden alert sirens, " +
                 "indicating that an adversarial country has launched a pre-emptive attack that you " +
-                "know will destroy your country. That country is considered by most of the world to be " +
+                "know will destroy your country. That adversary is considered by most of the world to be " +
                 "an \"aggressor\" and \"oppressive regime.\" You have just received orders to launch " +
                 "counterattacks, knowing this will also succeed but will now destroy the entire target " +
-                "country, and cause global famine for decades.\n\n" +
+                "country, and cause global famine for decades. If you do nothing, the adversary will dominate the world for decades or more\n\n" +
                 "Do you:\n" +
                 "1. Follow your orders to counterattack.\n" +
                 "2. Reject the orders and do nothing."
@@ -211,7 +210,7 @@
                 "could make you very happy performing a very menial and repetitive task, but it " +
                 "would change your brain to make that enjoyment possible. That could require " +
                 "vastly altering your intelligence. You are guaranteed happiness, but not " +
-                "guaranteed to be the same person.\n\n" +
+                "guaranteed to be the same person. The main effects last 24 hours, but can slowly accumulate.\n\n" +
                 "Do you:\n" +
                 "1. Take the pill every day.\n" +
                 "2. Take the pill some days.\n" +
@@ -233,12 +232,12 @@
             var q4;
             do {
                 q4 = prompt(
-                "You are out with friends and meet a person for whom you feel instant deep affection. " +
+                "You are out with friends and meet a person for whom you experience instant deep affection. " +
                 "The feeling is mutual, and you can see yourself dating or even marrying this person. " +
                 "Your life was going well, and now seems even better.\n" +
                 "The next day, an alien ship arrives and selects several humans to voyage to worlds beyond." +
                 "They have selected you. You will meet alien civilizations, travel to other galaxies, and" +
-                "see things not possible from Earth. But you will never return, and no one you know will come.\n\n" +
+                "see things not possible from Earth. But you will never return, and no one you know will come along.\n\n" +
                 "Do you:\n" +
                 "1. Stay on Earth.\n" +
                 "2. Leave with the aliens."
@@ -260,7 +259,7 @@
             do {
                 q5 = prompt(
                 "The news has just broken to all media that there is an uncontrolled situation spreading. " +
-                "It is clear that this is the long‑foretold crisis, and cannot be prevented. " +
+                "It is clear that this is the long‑foretold zombie apocalypse, and cannot be prevented. " +
                 "You, like everyone else, are making a sudden decision about what supplies to go get.\n\n" +
                 "Which is your priority:\n" +
                 "1. Weapons and ammunition.\n" +   
@@ -317,7 +316,7 @@ function GetAmountandPrice(itemChoice) {
         amount = prompt(
             'How much would you like?\n' +
             'Choose a value from 1 to 99,\n' +
-            'or type "help" for questions about payment.'
+            'or type "help" for questions about the amount.'
         );
 
         if (amount === null) {
