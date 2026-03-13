@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Beyond Pond Order Page</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
         
     window.onload = function () { // this was needed because hitting cancel wasn't looping initially due to no prior user input
@@ -456,6 +457,7 @@
     };
 
     // writing info to the actual page
+    document.writeln('<div style="max-width:600px; margin:auto; padding:1rem; font-size:1.1rem; line-height:1.5;">');
     document.writeln(greeting + " " + name + 
         ", thank you for ordering " + amount + "% of " + itemNames[itemChoice] + ".<br><br>");
 
@@ -465,6 +467,7 @@
         arrivalDate + ".<br><br>");
 
     document.writeln("Product Number: " + ProductNum + " (for internal use)");
+    document.writeln("</div>");
     };   
     </script>
 </head>
