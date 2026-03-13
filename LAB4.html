@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Beyond Pond Order Page</title>
+    <script>
+        
+
+    window.onload = function () {
+    alert("Welcome to the Beyond Pond!\nWhere you can Acquire what you Desire from the Place between Space");
+    var name;
+    do {
+        name = prompt("Tell me your Name.");
+
+        if (name === null) {
+            alert("To make a contract, we need a name.");
+            continue;
+        }
+
+        name = name.trim();
+
+        if (name === "") {
+            alert("To make a contract, we need a name.");
+            name = null;
+        }
+
+    } while (name === null);
+
+        var ProductNum = ""; 
+
+        var ishuman = prompt("Tell me, " + name.trim() + ", are you human?");
+        
+        var answer = ishuman ? ishuman.trim().toLowerCase() : null;
+
+        if (answer === "no" || answer === "nope" || answer === "nah") {
+            alert("We can already see that you are. Now We can also see that you like to tell lies. We urge you caution: you can only lie to yourself here, and it may affect what you leave with.");
+            ProductNum += "1";
+        }
+        else if (answer === "yes" || answer === "y" || answer === "yeah" || answer === "yep") {
+            ProductNum += "0";
+        } else {
+            alert("Be not afraid. We can already see that you are human.");
+            ProductNum += "0";
+        }
+
+        alert("Unfortunately our store is not yet designed with the human eye in mind. We will have to communicate with text, instead of allowing you to browse. We apologize for the inconvenience.");
+
+        function YouMustChoose() {
+            alert(
+                "By clicking our link, you have agreed to remain here until a purchase is made. " +
+                "We cannot choose for you, so if you please:"
+            );
+        }
+
+        function askForItem() {
+            var response1;
+            var r1;
+
+            do {
+                response1 = prompt(
+                    "Which item would you like?\n" +
+                    "1. What I need\n" +
+                    "2. What I want\n" +
+                    "3. What I deserve\n" +
+                    "4. What is best\n" +
+                    "5. What is this?\n" +
+                    "6. How are these determined?"
+                );
+
+                r1 = response1 ? response1.trim() : null;
+                if (r1 === null) {
+                    YouMustChoose();
+                    continue;
+                }
+
+
+                switch (r1) {
+                    case "1":
+                        alert(
+                            "Note that what you need may be different from what you think, " +
+                            "and not what you want, or what is best."
+                        );
+                        break;
+
+                    case "2":
+                        alert(
+                            "Note that what you want may not be what you need or what is best."
+                        );
+                        break;
+
+                    case "3":
+                        alert(
+                            "What you deserve is determined by a combination of our own justice, " +
+                            "your culture's justice, and your own internal sense of right and wrong. " +
+                            "You may deserve something vastly different than you believe."
+                        );
+                        break;
+
+                    case "4":
+                        alert(
+                            "What is best is determined by a combination of many factors—what you need and want, " +
+                            "but also what your society needs and wants, and what we need and want. " +
+                            "It is a more selfless option that may make your life shorter or seemingly worse, " +
+                            "but could also be better for you in ways you wouldn't expect."
+                        );
+                        break;
+
+                    case "5":
+                        alert(
+                            "You were given a link back in your world. This may appear to a person in a dream, " +
+                            "a divine vision, or in your case in an email from an unknown sender, which you clicked on " +
+                            "(how adventurous!). This action removed you from the flow of time in your world.\n\n" +
+                            "You have now won the opportunity to alter your life going forward, for a small fee. " +
+                            "Once the choice is made, you will return to your world and await receipt of your new path."
+                        );
+                        break;
+
+                    case "6":
+                        alert(
+                            "We exist outside your world. We have watched your entire life and have seen your mind " +
+                            "at every moment. We already know what you need, want, etc., and generally how to provide it.\n" +
+                            "Your life was predetermined until the moment you were brought here. Now your mind is invisible " +
+                            "to us, and you are finally free to make choices that may change who you will become, what you " +
+                            "will do in this life and beyond.\n\n" +
+                            "Following selection, you will be given a short test that will help us make final adjustments " +
+                            "to the paths we have already built for you. Be wise with your decisions."
+                        );
+                        break;
+                }
+
+                if (["1","2","3","4"].includes(r1)) {
+                    var confirmChoice = prompt(
+                        "You have chosen option " + r1 + ".\n" +
+                        "Press Cancel if you wish to go back, or OK to continue."
+                    );
+
+                    if (confirmChoice === null) {
+                        r1 = null;
+                    }
+                }
+
+            } while (r1 === null || !["1","2","3","4"].includes(r1));
+
+            return r1;
+        }
+        
+        function encodeAnswer(num) {
+            var value = 10 - num; 
+            return String.fromCharCode(64 + value); 
+        }
+   
+
+        function runTest() {
+
+            var q1;
+            do {
+                q1 = prompt(
+                "You are working in a store. One day you see a young man with a small daughter " +
+                "steal a loaf of bread. You do not report him. A week later, he returns alone " +
+                "and attempts to steal a more expensive portable music device.\n\n" +
+                "Do you:\n" +
+                "1. Confiscate the item but let him leave.\n" +
+                "2. Report him to security.\n" +
+                "3. Ask if he needs help or offer him a job interview.\n" +
+                "4. Allow him to leave with the item."
+                );
+                if (q1 === null) {
+                    YouMustChoose();
+                    continue;
+                }
+                q1 = q1.trim();
+                if (!["1","2","3","4"].includes(q1)) {
+                    YouMustChoose();
+                    q1 = null;
+            }
+            } while (q1 === null);
+            
+            ProductNum += encodeAnswer(Number(q1));
+
+            var q2;
+            do {
+                q2 = q2 = prompt(
+                "Insert Question 2 text here:\n" +
+                "You are a military officer stationed at a nuclear terminal. A sudden alert sirens, " +
+                "indicating that an adversarial country has launched a pre-emptive attack that you " +
+                "know will destroy your country. That country is considered by most of the world to be " +
+                "an \"aggressor\" and \"oppressive regime.\" You have just received orders to launch " +
+                "counterattacks, knowing this will also succeed but will now destroy the entire target " +
+                "country, and cause global famine for decades.\n\n" +
+                "Do you:\n" +
+                "1. Follow your orders to counterattack.\n" +
+                "2. Reject the orders and do nothing."
+                );
+
+                if (q2 === null) {
+                    YouMustChoose();
+                    continue;
+                }
+                q2 = q2.trim();
+                if (!["1","2"].includes(q2)) {
+                    YouMustChoose();
+                    q2 = null;
+                }
+            } while (q2 === null);
+            ProductNum += encodeAnswer(Number(q2));
+
+            var q3;
+            do {
+                q3 = prompt(
+                "A new pill has been developed that can make a person happy doing anything, " +
+                "but at the cost of altering their personality or abilities. For instance, it " +
+                "could make you very happy performing a very menial and repetitive task, but it " +
+                "would change your brain to make that enjoyment possible. That could require " +
+                "vastly altering your intelligence. You are guaranteed happiness, but not " +
+                "guaranteed to be the same person.\n\n" +
+                "Do you:\n" +
+                "1. Take the pill every day.\n" +
+                "2. Take the pill some days.\n" +
+                "3. Never take the pill."
+                );
+
+                if (q3 === null) {
+                    YouMustChoose();
+                    continue;
+                }
+                q3 = q3.trim();
+                if (!["1","2","3"].includes(q3)) {
+                    YouMustChoose();
+                    q3 = null;
+                }
+            } while (q3 === null);
+            ProductNum += encodeAnswer(Number(q3));
+
+            var q4;
+            do {
+                q4 = prompt(
+                "You are out with friends and meet a person for whom you feel instant deep affection. " +
+                "The feeling is mutual, and you can see yourself dating or even marrying this person. " +
+                "Your life was going well, and now seems even better.\n" +
+                "The next day, an alien ship arrives and selects several humans to voyage to worlds beyond." +
+                "They have selected you. You will meet alien civilizations, travel to other galaxies, and" +
+                "see things not possible from Earth. But you will never return, and no one you know will come.\n\n" +
+                "Do you:\n" +
+                "1. Stay on Earth.\n" +
+                "2. Leave with the aliens."
+                );
+
+                if (q4 === null) {
+                    YouMustChoose();
+                    continue;
+                }
+                q4 = q4.trim();
+                if (!["1","2"].includes(q4)) {
+                    YouMustChoose();
+                    q4 = null;
+                }
+            } while (q4 === null);
+            ProductNum += encodeAnswer(Number(q4));
+
+            var q5;
+            do {
+                q5 = prompt(
+                "The news has just broken to all media that there is an uncontrolled situation spreading. " +
+                "It is clear that this is the long‑foretold crisis, and cannot be prevented. " +
+                "You, like everyone else, are making a sudden decision about what supplies to go get.\n\n" +
+                "Which is your priority:\n" +
+                "1. Weapons and ammunition.\n" +   
+                "2. Medical supplies.\n" +
+                "3. Food supplies.\n" +
+                "4. Tools / Batteries / Crafting gear.\n" +
+                "5. Luxury / Entertainment."
+                );
+                if (q5 === null) {
+                    YouMustChoose();
+                    continue;
+                }
+                q5 = q5.trim();
+                if (!["1","2","3","4","5"].includes(q5)) {
+                    YouMustChoose();
+                    q5 = null;
+                }
+            } while (q5 === null);
+            ProductNum += encodeAnswer(Number(q5));
+}
+    ProductNum += "Y";
+
+    var itemChoice = askForItem();
+       
+    alert("You will now take a brief test to help us determine how to build your new path. Be honest, or the product may not align with your request.");
+    runTest();
+    alert("Thank you for you cooperation. There are no wrong answers, you are who you are!")
+
+var price;
+var amount;
+var num;
+
+function GetAmountandPrice(itemChoice) {
+    var multiplier = {
+        1: 2.00,
+        2: 3.00,
+        3: 1.50,
+        4: 1.00
+    }[itemChoice];
+
+    var helpText =
+        "What do the numbers mean?\n" +
+        "The value you select represents the degree of attainment of the option you chose.\n" +
+        "Choose 1 for a need and you will get but a crumb of what you need.\n" +
+        "Choose 50 for a want and you will get half of what you desire.\n" +
+        "Choose 99 for deserve and you will receive your just reward nearly in full.\n\n" +
+        "Why only 1 to 99?\n" +
+        "Your path was already altered by coming here, so you cannot choose 0. " +
+        "We also cannot guarantee precision beyond whole numbers, nor that you fully " +
+        "attain what you need, want, or deserve. There is always uncertainty, so " +
+        "100 and fractions are not an option.";
+
+    do {
+        amount = prompt(
+            'How much would you like?\n' +
+            'Choose a value from 1 to 99,\n' +
+            'or type "help" for questions about payment.'
+        );
+
+        if (amount === null) {
+            YouMustChoose();
+            continue;
+        }
+
+        amount = amount.trim().toLowerCase();
+
+        if (amount === "help") {
+            alert(helpText);
+            continue;
+        }
+
+        num = parseInt(amount);
+
+        if (isNaN(num) || num < 1 || num > 99) {
+            alert(helpText);
+            num = null;
+            continue;
+        }
+
+        price = (num * multiplier).toFixed(2);
+
+        var confirmChoice;
+        do {
+            confirmChoice = prompt(
+                "Your price is: " + price + "\n\n" +
+                "1. Confirm your order\n" +
+                "2. Go back to amount\n" +
+                "3. Go back to choice\n" +
+                "4. What am I paying with?"
+            );
+
+            if (confirmChoice === null) {
+                YouMustChoose();
+                continue;
+            }
+
+            confirmChoice = confirmChoice.trim();
+
+            if (confirmChoice === "4") {
+                alert(
+                    "You are paying with time from your next lives, relative to the remaining " +
+                    "length of your current one. You will owe us the price you see multiplied by " +
+                    "the fraction of your remaining years divided by 100, in years of service.\n\n" +
+                    "PRICE FACTORS:\n" +
+                    "• What is best: 1.00\n" +
+                    "• What you deserve: 1.50\n" +
+                    "• What you need: 2.00\n" +
+                    "• What you want: 3.00"
+                );
+                continue;
+            }
+
+            if (!["1","2","3"].includes(confirmChoice)) {
+                YouMustChoose();
+                confirmChoice = null;
+            }
+
+        } while (confirmChoice === null || confirmChoice === "4");
+
+        if (confirmChoice === "1") {
+            return amount;
+        }
+
+        if (confirmChoice === "2") {
+            return "backToAmount";
+        }
+
+        if (confirmChoice === "3") {
+            return "backToChoice";
+        }
+
+    } while (true);
+}
+
+ amount = GetAmountandPrice(itemChoice);
+ while (amount === "backToAmount" || amount === "backToChoice") {
+
+    if (amount === "backToAmount") {
+        amount = GetAmountandPrice(itemChoice);  
+    }
+
+    else if (amount === "backToChoice") {
+        itemChoice = askForItem();
+        amount = GetAmountandPrice(itemChoice);
+    }
+}
+
+ProductNum += "X" + encodeAnswer(Number(itemChoice));
+ProductNum += amount;
+
+var arrival = new Date();
+arrival.setDate(arrival.getDate() + 7);
+
+var arrivalDate = (arrival.getMonth() + 1) + "/" + arrival.getDate() + "/" + arrival.getFullYear();
+
+var now = new Date();
+var hour = now.getHours();
+var greeting;
+
+if (hour < 12) greeting = "Good morning";
+else if (hour < 18) greeting = "Good afternoon";
+else greeting = "Good evening";
+
+var itemNames = {
+    1: "what you need",
+    2: "what you want",
+    3: "what you deserve",
+    4: "what is best"
+};
+
+document.writeln(greeting + " " + name + 
+    ", thank you for ordering " + amount + "% of " + itemNames[itemChoice] + ".<br><br>");
+
+document.writeln("The price is " + price + " years of service for every 100 years remaining in your current life (proportional if more or less).<br><br>");
+
+document.writeln("Your new path will arrive in the form of an unexpected event that will occur on " +
+    arrivalDate + ".<br><br>");
+
+document.writeln("Product Number: " + ProductNum + " (for internal use)");
+};   
+
+
+    </script>
+</head>
+<body>
+</body>
+</html>
