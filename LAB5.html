@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>SOMNIVERSE — Registration</title>
+
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+  
+  <script>
+  function SwapPage() {
+    document.getElementById("page1").classList.remove("d-flex");
+    document.getElementById("page1").style.display = "none";
+    document.getElementById("page2").style.display = "block";
+  }
+  
+  function ShowForm() {
+    document.getElementById("registrationForm").style.display="block";
+    document.getElementById("registrationForm").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function checkdate(date){
+    let datetext = "Enter a valid date of birth: MMDDYYYY<br>";
+
+    if(isNaN(parseInt(date))) {
+      return datetext;
+    }
+    
+    let month = parseInt(date.slice(0,2));
+    let day = parseInt(date.slice(2,4));
+    let year = parseInt(date.slice(4,8));
+
+    let now = new Date();
+    let bday = new Date(year + 18, month - 1, day);
+
+    if(!((1<=month && month<=12) && (1<=day && day<=31) && ((now.getFullYear()-120)<=year && year <=(now.getFullYear())))) {
+      return datetext;
+    }
+    
+    else if(bday > now) {
+      return "Must be over 18 to register<br>";
+    }
+    else {
+      return "";
+    }
+  }
+
+  function checkpwd(pass) {
+    let passtext= "Enter a valid Password. Must be at least 8 characters, and contain a ? or !<br>"
+    if ((pass.length >= 8) &&(pass.includes("!") || pass.includes("?"))) {
+      return "";
+    } else return passtext;
+  }
+
+  function checkemail(email) {
+    let emailtext = "Enter a valid Email Address. Ex: youremail@host.com<br>"
+    if ((email.length >= 7) && email.includes("@") && email.includes(".")) {
+      return "";
+    } else return emailtext;
+  }
+
+  function SubmitForm() {
+    const User = {
+      fname: document.getElementById("firstname").value.trim(),
+      lname: document.getElementById("lastname").value.trim(),
+      dateofbirth: document.getElementById("DOB").value.trim(),
+      emailaddress: document.getElementById("email").value.trim(),
+      pwd: document.getElementById("password").value.trim()
+    }
+    
+    let errortext = "";
+    errortext += ((User.fname === "")? "Enter a valid First Name<br>" : "");
+    errortext += ((User.lname === "")? "Enter a valid Last Name<br>" : "");
+    errortext += checkdate(User.dateofbirth);
+    errortext += checkemail(User.emailaddress);
+    errortext += checkpwd(User.pwd);
+
+    let successtext = "";
+    successtext += ("Name: " + User.fname + " " + User.lname + "<br>" +
+        "DOB: " + User.dateofbirth.slice(0,2) + "/" + User.dateofbirth.slice(2,4) + "/" + User.dateofbirth.slice(4,8) + "<br>" +
+        "Email: " + User.emailaddress + "<br>" +
+        "Password: " + "*".repeat(User.pwd.length) + "<br>")
+
+    const outputform = document.getElementById("formOutput");
+    
+    if(errortext) {
+      outputform.innerHTML = 
+        "<p style='color:red'><strong>Registration Failed. Please enter all fields correctly</strong>.</p>" +
+        "<p>" + errortext + "</p>";
+      outputform.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else {
+      outputform.innerHTML =
+        "<p style='color:green'><strong>Registration Success!</strong></p>" +
+        "<p>" + successtext + "</p><br><br>"+
+        "<button id='dreambutton' type='button' class='btn btn-primary w-100' onclick='OpenDreamBook()''>Open DreamBook</button>";
+      document.getElementById("dreambutton").scrollIntoView({ behavior: "smooth", block: "center" }); 
+      document.getElementById("adventuretext").textContent = "Your Adventure Awaits, " + User.fname;
+    } 
+  }
+
+  function OpenDreamBook() { 
+    document.getElementById("page2").style.display="none";
+    document.getElementById("page3").style.display="block";
+  }
+  </script>
+</head>
+
+<body>
+<div id="page1" class="container-fluid d-flex flex-column justify-content-center align-items-center p-2 rounded min-vh-100"
+     style="background-color: rgb(236, 225, 207); display:block">
+  
+  <img src="somniverselogo.jpg" class="img-fluid rounded mb-2" style="width: 100%; height: auto; max-height:calc(100vh - 140px); object-fit: contain; transform: translateY(-2vh)">
+  
+  <p class="fs-4 fw-semibold" style="transform: translate(.6vh, -4vh);"><br>Upgrade Your Dreams</p>
+  
+  <button class="btn btn-primary" style="transform: translate(.6vh, -4vh)" onclick="SwapPage()">Go</button>
+</div>
+<div style="background-color:  rgb(241, 235, 217);">
+  <div id="page2" class="container" style="display:none;">
+    <div class="row mb-4 align-items-center">
+      <div class="col-md-6 order-2 order-md-1">
+        <h2><b>What is the Somniverse</b></h2>
+        <p class="fs-5">Have you ever had a dream you wish you could relive, or share with others? Would you prefer to have more control of your dreams, to orchestrate them in advance? Or would you rather have stories 
+          built for you by novelists, artists, and other bright minds? Maybe you just want more hours in the day to work on projects, to learn, or be with family and friends in fantastical worlds. While society has arrived
+          at the dawn of a Cybernetic era, we at Somniverse Labs are focused on the new night-life that has emerged from such human ingenuity. Join us in the after-hours of Somniverse. 
+        </p>
+      </div>
+      <div class="col-md-6 text-center mb-2 mb-md-0 order-1 order-md-2">
+        <img src="headinclouds.jpg" class="img-fluid rounded"  style="max-width: 500px; max-height: 500px; width: 100%; height: auto; object-fit: contain;">
+      </div>
+    </div><br>
+    <div class="row mb-4 align-items-center">
+      <div class="col-md-6 text-start mb-4 mb-md-0">
+        <img src="dreamoffice3.jpeg" class="img-fluid rounded"  style="max-width: 500px; max-height: 500px; width: 100%; height: auto; object-fit: contain;">
+      </div>
+      <div class="col-md-6">
+        <h2><b>The Dream Office: Work and Learn While You Sleep</b></h2>
+        <p class="fs-5"> For students and professionals, Somniverse presents the next evolution of the workplace. With dedicated dream spaces, we have cultivated environments and modules that are optimized for learning and retention, 
+          motivation and ideation. You set the level of lucidity- from passive and subliminal to fully aware and active. Some of humanity's greatest inventions awoke from sleeping minds- now your vision can be shared instantly with colleages and creators. 
+          The Dream Office transforms rest into opportunity.
+        </p>
+      </div>
+    </div><br><br>
+    <div class="row mb-4 align-items-center">
+      <div class="col-md-6 order-2 order-md-1">
+        <h2><b>The DreamBook</b></h2>
+        <p class="fs-5"> Somniverse began as a collaboration between scientists and artists who were tired of ideas slipping through their fingers before finding a pen or brush to record them. The DreamBook allows you to save dreams as you 
+          experience them, return and edit, then relive or share them. Add your own pages to the catalog of dreams, or browse the DreamBook to select and experience the inner worlds of your favorite dreamers. A dedicated staff of professional artists, writers and educators contributes new content 
+          daily, ever expanding our Somniverse.
+        </p>
+      </div>
+      <div class="col-md-6 text-end mb-4 mb-md-0 order-1 order-md-2">
+        <img src="dreamlibrary2.jpeg" class="img-fluid rounded"  style="max-width: 500px; max-height: 500px; width: 100%; height: auto; object-fit: contain;">
+      </div>
+    </div><br>
+    <div class="row mb-4 align-items-center">
+      <h2><b>Zero Cost Model: Recycling the Unused Mind</b></h2>
+      <P class="fs-5">Access to the Somniverse carries no monetary charge*. Instead, participation supports the broader ecosystem by using your dormant neural regions
+         for distributed computation. These processes help power both the Somniverse and global research initiatives, as well as reduce the environmental footprint of traditional data centers. 
+         Your nightly presence helps sustain the network, advance collective creativity, and keep Somniverse accessible to all.
+
+      </P>
+    </div><br><br>
+    <button class="btn btn-primary d-block mx-auto mb-4" onclick="ShowForm()">Register Now</button><br><br>
+    
+    <div id="registrationForm" style="display: none;">
+      <div class="border rounded p-3 mt-3 bg-white shadow-sm mx-auto" style="max-width: 900px;">
+        <form>
+          <div class="row mb-3">
+            <div class="col-md-5">
+              <label for="firstname" class="form-label">First Name</label>
+              <input type="text" class="form-control " placeholder="--First--" id="firstname">
+            </div>
+            <div class="col-md-5">
+              <label for="lastname" class="form-label">Last Name</label>
+              <input type="text" class="form-control" placeholder="--Last--" id="lastname">
+            </div>
+            <div class="col-md-2">
+              <label for="DOB" class="form-label">Date of Birth</label>
+              <input type="text" class="form-control" placeholder="MMDDYYYY" id="DOB">
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="email" class="form-label">Email</label>
+              <input type="text" class="form-control" placeholder="--youremail@host.com--" id="email">
+            </div>
+            <div class="col-md-6">
+              <label for="password" class="form-label">Password</label>
+              <input type="password" class="form-control" placeholder="8+ characters, must include ? or !" id="password">
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary w-100" onclick="SubmitForm()">Submit</button>
+        </form><br>
+        <div id="formOutput"></div>
+      </div>
+    </div><br><br><br>
+    
+    <div class="row mb-md-0 align-items-center">
+      <div id="warning">
+        <p class="fs-6" style="color:darkgray;">
+          <strong>U.S. Code § 4829.17 — Cybernetic Augmentation Consumer Disclosure Requirements</strong><br><br>
+          <strong>SURGEON GENERAL’S WARNING:</strong> Use of cybernetic enhancements that suppress natural sleep cycles or overclock unused neural regions
+          for auxiliary computation may cause waking hallucinations, erratic motor activity, cognitive latency, memory erasure, impaired judgment, psychosis, 
+          identity drift, loss of consciousness, coma, or death. Maintain regulated rest intervals, desynchronization from cloud servers, and avoid exceeding 
+          recommended neural throughput. By submitting this registration, you acknowledge understanding of these risks and consent to activation.<br>
+          *Somniverse particiaptes in a shared cognitive-media consortium that permits approved sponsor corporations and institutional partners to 
+          embed low-intensity, subliminal messaging in compatible cyberware.<br>
+        </p><br>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="page3" 
+     class="container-fluid text-center p-2 rounded min-vh-100"
+     style="text-align: center; background-color: black; display:none">
+     <img src="dreamadventureh.jpeg" class="img-fluid rounded mb-2 mt-2" style= "width:80vh; height:auto; max-width:100vw; object-fit:contain; transform: translateY(10vh)">
+     <p id="adventuretext" class="fs-5 fw-semibold" style="color:white; transform: translateY(10vh)">Your adventure awaits</p>
+
+</div>
+</body>
+</html>
