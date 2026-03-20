@@ -30,7 +30,8 @@
     document.getElementById("registrationForm").scrollIntoView({ behavior: "smooth", block: "center" }); // moves screen to the form
   }
 
-  // checks for valid date, sort of. Doesn't see if that day actually exists in that particular month in that year, but close enough
+  // checks for valid date- though doesn't check if that day actually exists in that month or year (Date function might be able to though)
+  // user must be over 18 and under 120, which is considered the oldest age in this world
   function checkdate(date){
     let datetext = "Enter a valid date of birth: MMDDYYYY<br>";
 
