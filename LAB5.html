@@ -17,21 +17,24 @@
     integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
   
   <script>
+  // swaps first screen to second one by pressing the Go button
   function SwapPage() {
-    document.getElementById("page1").classList.remove("d-flex");
+    document.getElementById("page1").classList.remove("d-flex"); // flex apparently has priority and page 1 wouldn't swap stop displaying unless this was rmeoved
     document.getElementById("page1").style.display = "none";
     document.getElementById("page2").style.display = "block";
   }
-  
+ 
+  // shows the registration form when clicking the Register Now button
   function ShowForm() {
     document.getElementById("registrationForm").style.display="block";
-    document.getElementById("registrationForm").scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById("registrationForm").scrollIntoView({ behavior: "smooth", block: "center" }); // moves screen to the form
   }
 
+  // checks for valid date, sort of. Doesn't see if that day actually exists in that particular month in that year, but close enough
   function checkdate(date){
     let datetext = "Enter a valid date of birth: MMDDYYYY<br>";
 
-    if(isNaN(parseInt(date))) {
+    if(isNaN(parseInt(date))) {   // by using parseInt, as long as the first 8 digits form a valid date it will work, even if they have trailing characters
       return datetext;
     }
     
@@ -40,13 +43,13 @@
     let year = parseInt(date.slice(4,8));
 
     let now = new Date();
-    let bday = new Date(year + 18, month - 1, day);
+    let bday = new Date(year + 18, month - 1, day); // figures out when user turns 18, required by my registration form
 
     if(!((1<=month && month<=12) && (1<=day && day<=31) && ((now.getFullYear()-120)<=year && year <=(now.getFullYear())))) {
       return datetext;
     }
     
-    else if(bday > now) {
+    else if(bday > now) {   //checks if over 18
       return "Must be over 18 to register<br>";
     }
     else {
@@ -54,13 +57,15 @@
     }
   }
 
+  // password check only requires 8 characters and at least one ! or ?
   function checkpwd(pass) {
     let passtext= "Enter a valid Password. Must be at least 8 characters, and contain a ? or !<br>"
     if ((pass.length >= 8) &&(pass.includes("!") || pass.includes("?"))) {
       return "";
     } else return passtext;
   }
-
+  
+  // this is a terrible email check, only requires minimal characters and an @ and . o occur somewhere. could've used in-built type: email to get a little better
   function checkemail(email) {
     let emailtext = "Enter a valid Email Address. Ex: youremail@host.com<br>"
     if ((email.length >= 7) && email.includes("@") && email.includes(".")) {
@@ -68,7 +73,9 @@
     } else return emailtext;
   }
 
+  // main function- forms the User object after calling validation functions or doing them local, prints fail or succeess message and provides access to an outro screen
   function SubmitForm() {
+    // trim is used to cut the spaces at start and end of any user input, but they could use spaces internally. could have validated more, but....
     const User = {
       fname: document.getElementById("firstname").value.trim(),
       lname: document.getElementById("lastname").value.trim(),
@@ -77,21 +84,24 @@
       pwd: document.getElementById("password").value.trim()
     }
     
+    // running error message stored as string variable that concatenates with each failed validation. will say which fields were not properly filled out
     let errortext = "";
-    errortext += ((User.fname === "")? "Enter a valid First Name<br>" : "");
-    errortext += ((User.lname === "")? "Enter a valid Last Name<br>" : "");
+    errortext += ((User.fname === "")? "Enter a valid First Name<br>" : "");  // only checks that for one character, because some I know Ng is a name and maybe one letter ones exist too, or a single character
+    errortext += ((User.lname === "")? "Enter a valid Last Name<br>" : "");  // same, could be a single character. just non-empty or only spaces
     errortext += checkdate(User.dateofbirth);
     errortext += checkemail(User.emailaddress);
     errortext += checkpwd(User.pwd);
 
+    // creates success message to print User data to the DOM. a string variable that concatenates the trimmed user inputs
     let successtext = "";
     successtext += ("Name: " + User.fname + " " + User.lname + "<br>" +
         "DOB: " + User.dateofbirth.slice(0,2) + "/" + User.dateofbirth.slice(2,4) + "/" + User.dateofbirth.slice(4,8) + "<br>" +
         "Email: " + User.emailaddress + "<br>" +
-        "Password: " + "*".repeat(User.pwd.length) + "<br>")
+        "Password: " + "*".repeat(User.pwd.length) + "<br>") // password replaced with asterisks for the length of the typed password after trimming
 
-    const outputform = document.getElementById("formOutput");
+    const outputform = document.getElementById("formOutput"); // just names the element to shorten later text
     
+    // printing fail or success message. fail only shows what fields need to be filled, success prints the user data
     if(errortext) {
       outputform.innerHTML = 
         "<p style='color:red'><strong>Registration Failed. Please enter all fields correctly</strong>.</p>" +
@@ -101,12 +111,13 @@
       outputform.innerHTML =
         "<p style='color:green'><strong>Registration Success!</strong></p>" +
         "<p>" + successtext + "</p><br><br>"+
-        "<button id='dreambutton' type='button' class='btn btn-primary w-100' onclick='OpenDreamBook()''>Open DreamBook</button>";
+        "<button id='dreambutton' type='button' class='btn btn-primary w-100' onclick='OpenDreamBook()''>Open DreamBook</button>"; // writes button for outro into the registration form after sucessful registration
       document.getElementById("dreambutton").scrollIntoView({ behavior: "smooth", block: "center" }); 
-      document.getElementById("adventuretext").textContent = "Your Adventure Awaits, " + User.fname;
+      document.getElementById("adventuretext").textContent = "Your Adventure Awaits, " + User.fname; // writes the user first name into the outro screen message
     } 
   }
 
+  // opens the outro screen after successful registration, hides screen 2 after clicking the open Dreambook button
   function OpenDreamBook() { 
     document.getElementById("page2").style.display="none";
     document.getElementById("page3").style.display="block";
@@ -115,6 +126,8 @@
 </head>
 
 <body>
+
+ <!-- Screen 1 Intro page -->
 <div id="page1" class="container-fluid d-flex flex-column justify-content-center align-items-center p-2 rounded min-vh-100"
      style="background-color: rgb(236, 225, 207); display:block">
   
@@ -122,8 +135,11 @@
   
   <p class="fs-4 fw-semibold" style="transform: translate(.1vh, -4vh);"><br>Upgrade Your Dreams</p>
   
+  <!-- Button to Screen 2 -->
   <button class="btn btn-primary" style="transform: translate(.1vh, -4vh)" onclick="SwapPage()">Go</button>
 </div>
+
+<!-- Screen 2 Main page with Product Info, Registration Button and Form -->
 <div style="background-color:  rgb(241, 235, 217);">
   <div id="page2" class="container" style="display:none;">
     <div class="row mb-4 align-items-center">
@@ -170,8 +186,11 @@
 
       </P>
     </div><br><br>
+
+    <!-- Button to open Registration Form -->
     <button class="btn btn-primary d-block mx-auto mb-4" onclick="ShowForm()">Register Now</button><br><br>
     
+    <!-- Registration Form -->
     <div id="registrationForm" style="display: none;">
       <div class="border rounded p-3 mt-3 bg-white shadow-sm mx-auto" style="max-width: 900px;">
         <form>
@@ -199,12 +218,15 @@
               <input type="password" class="form-control" placeholder="8+ characters, must include ? or !" id="password">
             </div>
           </div>
+
+          <!-- Submit Form button calls the main function SubmitForm, will validate and print success or fail with appropriate info --> 
           <button type="button" class="btn btn-primary w-100" onclick="SubmitForm()">Submit</button>
         </form><br>
         <div id="formOutput"></div>
       </div>
     </div><br><br><br>
     
+    <!-- A warning message. The product is perhaps dangerous -->
     <div class="row mb-md-0 align-items-center">
       <div id="warning">
         <p class="fs-6" style="color:darkgray;">
@@ -220,6 +242,8 @@
     </div>
   </div>
 </div>
+
+<!-- Screen 3 Outro page, only accessible by successful registration, and prints user first name into message -->
 <div id="page3" 
      class="container-fluid text-center p-2 rounded min-vh-100"
      style="text-align: center; background-color: black; display:none">
