@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Wikipedia Trending</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- chart.js  included to graph and compare wiki page popularity-->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style> /*main elements here are vertical scrollable trending-list of daily most popular wiki pages, summary window for more info, and chart to graph popularity*/
+    :root {
+      --bg-color: #f8f9fa;
+      --panel-bg: #ffffff;
+      --text-color: #212529;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding-top: 70px;
+    }
+
+    .navbar-brand {
+      font-weight: 600;
+    }
+
+    .trending-list {
+      max-height: 420px;
+      overflow-y: auto;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(0,0,0,0.1);
+      background-color: var(--panel-bg);
+    }
+
+    .trending-item {
+      cursor: pointer;
+    }
+
+    .trending-item:hover {
+      background-color: rgba(0,0,0,0.03);
+    }
+
+    #summaryPanel {
+      background-color: var(--panel-bg);
+      border-radius: 0.5rem;
+      border: 1px solid rgba(0,0,0,0.1);
+      min-height: 220px;
+    }
+
+    #summaryThumbnail {
+      max-width: 180px;
+      max-height: 180px;
+      object-fit: cover;
+    }
+
+    #popularitySection {
+      scroll-margin-top: 80px;
+    }
+
+    /* Dark mode */
+    body.dark-mode {
+      --bg-color: #121212;
+      --panel-bg: #1e1e1e;
+      --text-color: #f8f9fa;
+    }
+
+    body.dark-mode .text-muted { /*devnote be careful with dark mode. !important needed to override bootstrap to properly display all elements*/
+      color: #b0b0b0 !important;
+    }
+
+    body.dark-mode .card,
+    body.dark-mode #summaryPanel,
+    body.dark-mode .trending-list {
+      background-color: var(--panel-bg) !important;
+      color: var(--text-color) !important;
+    }
+
+    body.dark-mode .list-group-item {
+      background-color: var(--panel-bg);
+      color: var(--text-color);
+      border-color: rgba(255,255,255,0.08);
+    }
+
+    body.dark-mode .list-group-item:hover {
+      background-color: #262626;
+    }
+  </style>
+</head>
+
+<body onload="initialPage()"> <!--will load daily trending for yesterday, as today wiki trending often not yet ready-->
+
+  <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top border-bottom">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Wiki Trending</a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarContent">
+        <ul class="navbar-nav ms-auto align-items-center">
+
+          <li class="nav-item me-3">
+            <a class="nav-link" href="explorer.html">Explorer</a>
+          </li>
+
+          <li class="nav-item me-3">
+            <a class="nav-link" href="deck_manager.html">Deck Manager</a>
+          </li>
+
+          <li class="nav-item">
+            <div class="form-check form-switch mt-2">
+              <input class="form-check-input" type="checkbox" id="darkModeToggle"
+                     onchange="toggleDarkMode(this.checked)">
+              <label class="form-check-label small" for="darkModeToggle">Dark Mode</label>
+            </div>
+          </li>
+
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container py-4">
+    <h1 class="mb-3">Wikipedia Daily Trending</h1>
+
+    <!-- date and load. uses in-built browser date picker -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-4 d-flex flex-column justify-content-start">
+        <label class="form-label">Date</label>
+        <input id="dailyDateInput" type="date" class="form-control">
+        <div class="small text-muted mt-1" id="dailyDateText"></div>
+      </div>
+
+      <div class="col-12 col-md-3 d-flex align-items-center"> <!--this refuses to align properly despite or as a result of overflexing-->
+        <button class="btn btn-primary w-100" onclick="loadDailyTrending()">Load Trending</button> <!--devnote, align this with the date search bar-->
+      </div>
+    </div>
+
+    <div id="dailyAlert" class="mb-3"></div>
+
+    <!-- Trending and Summary Container -->
+    <div class="row g-4 mb-4">
+      <!-- Trending list -->
+      <div class="col-12 col-lg-5">
+        <h5 class="mb-2">Trending Titles</h5>
+        <div class="trending-list">
+          <ul id="trendingList" class="list-group list-group-flush"></ul>
+        </div>
+        <div class="small text-muted mt-2">
+          Click a title to load summary or send to popularity tracker.
+        </div>
+      </div>
+
+      <!-- Summary panel -->
+      <div class="col-12 col-lg-7">
+        <h5 class="mb-2">Article Summary</h5>
+        <div id="summaryPanel" class="p-3">
+          <div id="summaryEmpty" class="text-muted">
+            Select a title from the trending list to load summary.
+          </div>
+
+          <div id="summaryContent" class="d-none">
+            <div class="d-flex flex-wrap align-items-start mb-3">
+              <div class="flex-grow-1 me-3">
+                <h3 id="summaryTitle" class="mb-1"></h3>
+                <div id="summaryDescription" class="text-muted mb-2"></div>
+                <div id="summaryRank" class="small text-muted mb-2"></div>
+              </div>
+              <div id="summaryThumbWrapper" class="mb-2">
+                <img id="summaryThumbnail" class="img-fluid rounded d-none" alt="Thumbnail">
+              </div>
+            </div>
+
+            <p id="summaryExtract" class="mb-3" style="white-space: pre-line;"></p>
+
+            <div class="d-flex flex-wrap gap-2 mb-2"> <!--popularity graph has left and right load to compare two pages-->
+              <button class="btn btn-sm btn-outline-info" onclick="sendToPopularity(1)">
+                Load into Popularity (Left)
+              </button>
+              <button class="btn btn-sm btn-outline-info" onclick="sendToPopularity(2)">
+                Load into Popularity (Right)
+              </button>
+              <button class="btn btn-sm btn-outline-warning" onclick="exploreMoreLikeThis()">
+                Explore More Like This
+              </button>
+
+              <a id="summaryLink" href="#" target="_blank" class="btn btn-sm btn-outline-secondary">
+                Open on Wikipedia
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- Popularity Tracker -->
+    <section id="popularitySection">
+      <h3>Popularity Tracker</h3>
+      <p class="small text-muted">
+        Compare pageviews for one or two topics over time. Type titles directly or load from the summary panel above.
+      </p>
+
+      <!-- Date Range Selector-->
+      <div class="row g-3 mb-3">
+        <div class="col-md-3">
+          <label class="form-label small">Start Date</label>
+          <input id="popStartDate" type="date" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">End Date</label>
+          <input id="popEndDate" type="date" class="form-control">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button class="btn btn-outline-secondary w-100" onclick="reloadPopularityRange()">Apply Range</button>
+        </div>
+      </div>
+
+      <!-- Topic Inputs -->
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="row g-4">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Topic 1</label>
+              <input id="popTopic1" class="form-control">
+              <div id="popSuggestions1" class="mt-2 small"></div> <!--for fuzzy search api call results-->
+              <div class="mt-2">
+                <button class="btn btn-primary w-100" onclick="searchPopularity(1)">Load Topic 1</button>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Topic 2</label>
+              <input id="popTopic2" class="form-control">
+              <div id="popSuggestions2" class="mt-2 small"></div>
+              <div class="mt-2">
+                <button class="btn btn-primary w-100" onclick="searchPopularity(2)">Load Topic 2</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between mt-3">
+            <div id="popStatus" class="small text-muted"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Correlation: simple Pearson value. devnote- should expand analytics-->
+      <div id="popCorrelation" class="fs-5 fw-bold text-center mb-2"></div>
+
+      <!-- Chart-->
+      <div style="height: 320px;">
+        <canvas id="popChart"></canvas>
+      </div>
+    </section>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    //base for api calls
+    const PAGEVIEWS_TOP = "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/";
+    const PAGEVIEWS_PER = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/all-agents/";
+    const REST_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/";
+    const ACTION_API = "https://en.wikipedia.org/w/api.php?origin=*";
+    
+    //main state variables
+    let trendingTitles = []; //array of trending titles from selected day 
+    let selectedSummary = null; //selected summary object
+
+    let popChart = null; //instance of chart
+    let popSeries = { series1: null, series2: null }; //holds datasets for the possibly 2 topics being graphed and compared
+
+    function toggleDarkMode(enabled) {
+      if (enabled) {
+        document.body.classList.add("dark-mode");
+      } else {
+        document.body.classList.remove("dark-mode");
+      }
+    }
+
+    function initialPage() { //loads trending list to yesterday, today wiki trending not always ready 
+      const now = new Date();
+      now.setDate(now.getDate() - 1); 
+      const isoYesterday = now.toLocaleDateString("en-CA"); //encode in ISO date format YYYY-MM-DD to prep for wiki pageviews api
+
+      document.getElementById("dailyDateInput").value = isoYesterday;
+      document.getElementById("dailyDateText").textContent =
+        "Defaulting to yesterday: " + isoYesterday;
+
+      //default chart ranges, gives the widest possible rangle. Pageviews tracking starts in 2015
+      document.getElementById("popEndDate").value = isoYesterday;
+      document.getElementById("popStartDate").value = "2015-07-01";
+
+      loadDailyTrending(); //load trending, uses dailyDateText for call date
+    }
+
+    function setStatus(msg) { //display message depending on search status or result
+      const elm = document.getElementById("dailyAlert");
+      elm.innerHTML = msg ? '<div class="alert alert-info">' + msg + "</div>" : "";
+    }
+
+    async function fetchJson(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Network error"); //check network response and throw error if bad
+      return response.json();
+    }
+
+    async function loadDailyTrending() { //load the trending array by calling wiki pageviews api
+      try { //safeguard for api call
+        setStatus("Loading trending…");
+        trendingTitles = []; //clear the current trending array, list and summary area
+        document.getElementById("trendingList").innerHTML = "";
+        clearSummary();
+
+        let dateString = document.getElementById("dailyDateInput").value.trim(); //create date string from dailyDateInput, trim white space
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) { //validate date format YYYY-MM-DD digits
+          setStatus("Invalid date.");
+          return;
+        }
+
+        document.getElementById("dailyDateText").textContent =
+          "Showing trending for: " + dateString;
+
+        const url = PAGEVIEWS_TOP + dateString.replace(/-/g, "/"); //modify string to fit pageviews api requirement YYYY/MM/DD
+        const data = await fetchJson(url); //calls the wiki pageviews API, top all access endpoint
+
+        const items = data.items && data.items[0] && data.items[0].articles //validates that actual articles list is returned, using api return format
+          ? data.items[0].articles
+          : [];
+
+        const filtered = items.filter(a => //filter out articles starting with period, which includes garbage and several common nsfw entries
+          a.article &&
+          !a.article.startsWith(".")
+        );
+
+        trendingTitles = filtered.map((a, i) => ({ //builds map object of those titles with shifted index to match rank
+          title: a.article,
+          rank: i + 1
+        }));
+
+        if (!trendingTitles.length) { //fail message
+          setStatus("No trending articles for that date.");
+          return;
+        }
+
+        renderTrendingList(); 
+        setStatus("");
+      } catch (error) {
+        console.error(error);
+        setStatus("Error loading trending.");
+      }
+    }
+
+    function renderTrendingList() {
+      const list = document.getElementById("trendingList");
+      list.innerHTML = ""; //clear prior list
+
+      trendingTitles.forEach((item, index) => {//loop through titles, create list element to display title and clickable to call summary function
+        const li = document.createElement("li");  
+        li.className = "list-group-item d-flex justify-content-between align-items-center trending-item";
+        li.onclick = function () { loadSummaryForIndex(index); };
+        //display article rank and title
+        li.innerHTML = `
+          <div class="me-2">
+            <span class="badge bg-secondary me-2">#${item.rank}</span>
+            <span>${item.title}</span>
+          </div>
+        `;
+
+        list.appendChild(li); //add list item to trending list
+      });
+    }
+
+    function clearSummary() { //reset summary state, show empty summary conatiner and hide content
+      selectedSummary = null;
+      document.getElementById("summaryEmpty").classList.remove("d-none");
+      document.getElementById("summaryContent").classList.add("d-none");
+    }
+
+    async function loadSummaryForIndex(index) {//loads summary of index title using wiki rest api summary endpoint
+      const item = trendingTitles[index]; //get title
+      if (!item) return;
+      //trim and prep url using inbuilt encode function for api call
+      const title = item.title;
+      const encoded = encodeURIComponent(title.replace(/ /g, "_"));
+      const url = REST_SUMMARY + encoded;
+
+      try {//show empty summary state 
+        document.getElementById("summaryEmpty").classList.remove("d-none");
+        document.getElementById("summaryContent").classList.add("d-none");
+        document.getElementById("summaryEmpty").textContent = "Loading summary…";
+
+        const data = await fetchJson(url); //calls wiki rest api summary endpoint
+
+        selectedSummary = { //build a summary object from the returned info, leaving empty string if missing. 
+          title: data.title || title,
+          description: data.description || "",
+          extract: data.extract || "",
+          thumbnail: data.thumbnail && data.thumbnail.source ? data.thumbnail.source : "", //check image exists and has url
+          url: data.content_urls && data.content_urls.desktop //if it does, display image, otherwise empty string to hide it
+            ? data.content_urls.desktop.page
+            : ("https://en.wikipedia.org/wiki/" + encoded),
+          rank: item.rank //stores rank to display in summary panel
+        };
+
+        renderSummary(); 
+      } catch (error) {//error caatch and message
+        console.error(error);
+        document.getElementById("summaryEmpty").textContent = "Error loading summary.";
+      }
+    }
+
+    function renderSummary() { //renders the returned data into the summary field
+      if (!selectedSummary) {
+        clearSummary(); //catch, if no selected summary reset the field 
+        return;
+      }
+      //hide empty placeholder, show content 
+      document.getElementById("summaryEmpty").classList.add("d-none");
+      document.getElementById("summaryContent").classList.remove("d-none");
+      //display title, description, trending rank
+      document.getElementById("summaryTitle").textContent = selectedSummary.title;
+      document.getElementById("summaryDescription").textContent = selectedSummary.description || "";
+      document.getElementById("summaryRank").textContent =
+        selectedSummary.rank ? "Trending rank: #" + selectedSummary.rank : "";
+      //show image if it exists, else hide 
+      const thumb = document.getElementById("summaryThumbnail");
+      if (selectedSummary.thumbnail) {
+        thumb.src = selectedSummary.thumbnail;
+        thumb.classList.remove("d-none");
+      } else {
+        thumb.classList.add("d-none");
+      }
+      //sets the summary extract, and link to full wiki page of that title
+      document.getElementById("summaryExtract").textContent = selectedSummary.extract || "";
+      document.getElementById("summaryLink").href = selectedSummary.url;
+    }
+
+    function sendToPopularity(slot) {//loads title from summary into popularity graph, properly into left=1 or rigth=2
+      if (!selectedSummary) return; //catcch if none
+      const title = selectedSummary.title; 
+      if (slot === 1) {
+        document.getElementById("popTopic1").value = title;
+        clearSuggestions(1);
+      } else {
+        document.getElementById("popTopic2").value = title;
+        clearSuggestions(2);
+      }
+      loadPopularityForTitle(title, slot);  //will fetch from wiki pageviews api
+      document.getElementById("popularitySection").scrollIntoView({ behavior: "smooth" }); //scroll to chart
+    }
+
+    function exploreMoreLikeThis() {//will send title as seed into the explorer page buildDeck usisng topic seed, on initial page load
+      if (!selectedSummary) return;
+      const seed = encodeURIComponent(selectedSummary.title.replace(/ /g, "_")); //encode title using inbuilt function, replace space with underscore
+      window.location.href = "explorer.html?seed=" + seed; //redirect to explorer with seed
+    }
+
+    function formatDateForPageviews(d) { //prep for api call
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return "" + y + m + day;
+    }
+
+    function getRangeDates() {//get input start and end date for chart. default oldest available to yesterday. swap dates if user gives end < start
+      const startInput = document.getElementById("popStartDate");
+      const endInput = document.getElementById("popEndDate");
+
+      let start = startInput.value ? new Date(startInput.value) : new Date(2015, 6, 1);
+      let end = endInput.value ? new Date(endInput.value) : new Date(Date.now() - 86400000);
+
+      if (end < start) {
+        const tmp = start;
+        start = end;
+        end = tmp;
+      }
+
+      return { start, end }; //return selected range
+    }
+
+    function reloadPopularityRange() { //reloads the pageviews fetch for topics already loaded, but with new dates. devnote- could cut api calls by checking if range covered first
+      const s1 = popSeries.series1;
+      const s2 = popSeries.series2;
+      if (s1) loadPopularityForTitle(s1.title, 1);
+      if (s2) loadPopularityForTitle(s2.title, 2);
+    }
+
+        async function getSearchSuggestions(query) { //calls wiki action api opensearch endpoint for fuzzy search to give suggestions to query
+      const url = ACTION_API +
+        "&action=opensearch&search=" +
+        encodeURIComponent(query) +
+        "&limit=5&namespace=0&format=json"; //limit to 5
+      const data = await fetchJson(url);  //calls the opensearch api
+      return data[1] || [];
+    }
+
+    function clearSuggestions(slot) { //clear correct suggestion box and buttons
+      const id = slot === 1 ? "popSuggestions1" : "popSuggestions2";
+      document.getElementById(id).innerHTML = "";
+    }
+
+    async function searchPopularity(slot) { //handles search suggestions, search and loading for topic
+      const inputId = slot === 1 ? "popTopic1" : "popTopic2"; //get correct input field and suggestion box
+      const suggId = slot === 1 ? "popSuggestions1" : "popSuggestions2";
+      const topic = document.getElementById(inputId).value.trim(); //user search input
+      const suggElm = document.getElementById(suggId); //suggeston element
+      const status = document.getElementById("popStatus"); //status element
+
+      suggElm.innerHTML = ""; //clear old suggestion
+      if (!topic) return;
+
+      status.textContent = 'Searching "' + topic + '"…'; //show searching message
+
+      try {
+        const suggestions = await getSearchSuggestions(topic); //fetch suggestions using wiki action opensearch
+
+        if (suggestions.includes(topic)) { //if exact match, update status and load directly
+          status.textContent = 'Loading popularity for "' + topic + '"…';
+          await loadPopularityForTitle(topic, slot);
+          return;
+        }
+
+        if (!suggestions.length) { //catch if no matcches
+          status.textContent = "No matching Wikipedia pages found.";
+          return;
+        }
+        //build suggestion buttons
+        suggElm.innerHTML = `
+          <div>
+            <span class="fw-semibold">Did you mean:</span>
+            ${suggestions.map(s => `
+              <button class="btn btn-sm btn-outline-primary m-1"
+                onclick="selectPopSuggestion('${s.replace(/'/g, "\\'")}', ${slot})">
+                ${s}
+              </button>
+            `).join("")}
+          </div>
+        `;
+        status.textContent = "Select one of the suggested pages.";
+      } catch (error) {
+        console.error(error);
+        status.textContent = "Error searching topic.";
+      }
+    }
+
+    function selectPopSuggestion(title, slot) {//fill correct input field with user selected suggestion title, clear suggestions box and load for pageviews fetch
+      const inputId = slot === 1 ? "popTopic1" : "popTopic2";
+      document.getElementById(inputId).value = title;
+      clearSuggestions(slot);
+      loadPopularityForTitle(title, slot);
+    }
+
+    async function loadPopularityForTitle(title, slot) { //fetches wiki pageviews api
+      const status = document.getElementById("popStatus"); //set load message
+      status.textContent = 'Loading pageviews for "' + title + '"…';
+      //set up url elements for api call
+      const { start, end } = getRangeDates();
+      const startStr = formatDateForPageviews(start);
+      const endStr = formatDateForPageviews(end);
+
+      const encoded = encodeURIComponent(title.replace(/ /g, "_"));
+      const url = PAGEVIEWS_PER + encoded + "/daily/" + startStr + "/" + endStr;
+
+      try {
+        const data = await fetchJson(url); //call wiki pageviews api per-article by title endpoint
+        if (!data.items || !data.items.length) { //error catch
+          status.textContent = 'No pageview data for "' + title + '".';
+          return;
+        }
+
+        const labels = data.items.map(i => i.timestamp.slice(0, 8)); //get yyyymmdd time stamp from return data
+        const values = data.items.map(i => i.views);  //get pageviews from retun data
+        const color = slot === 1 ? "#3b82f6" : "#f97316"; //blue for left topic graph, orange for right
+
+        popSeries[slot === 1 ? "series1" : "series2"] = {//stores dataset for the chart
+          title,
+          labels,
+          data: values,
+          color
+        };
+
+        drawPopularityChart(); //draw grpah function
+        updateCorrelation();  //produce and display correlation value
+        status.textContent = "Loaded popularity data.";
+      } catch (error) {
+        console.error(error);
+        status.textContent = "Error loading pageviews.";
+      }
+    }
+
+    function drawPopularityChart() { //draws the chart from data, using chart.js 
+      const ctx = document.getElementById("popChart").getContext("2d"); //get 2D drawing context from canvas, 
+      const s1 = popSeries.series1; //left data
+      const s2 = popSeries.series2; //right data
+      if (!s1 && !s2) return; //one can be null, not both
+
+      const labels = (s1 && s1.labels) || (s2 && s2.labels) || []; //gets label
+      const datasets = []; //for chart.js dataset
+      //push datasets into the chart
+      if (s1) { 
+        datasets.push({
+          label: s1.title,
+          data: s1.data,
+          borderColor: s1.color,
+          tension: 0.2,
+          pointRadius: 2,
+          pointHitRadius: 6
+        });
+      }
+
+      if (s2) {
+        datasets.push({
+          label: s2.title,
+          data: s2.data,
+          borderColor: s2.color,
+          tension: 0.2,
+          pointRadius: 2,
+          pointHitRadius: 6
+        });
+      }
+
+      if (popChart) popChart.destroy(); //destroy old chart first
+
+      popChart = new Chart(ctx, {//set up new chart type
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false, //allowe flexible height
+          scales: {
+            x: { ticks: { color: "#6c757d" } },
+            y: { ticks: { color: "#6c757d" } }
+          }
+        }
+      });
+    }
+
+    function updateCorrelation() { //gives pearson correlation between 2 data sets. devnote this is superficial statisticaly analysis, no effect size. needs overhaul
+      const s1 = popSeries.series1;
+      const s2 = popSeries.series2;
+      const elm = document.getElementById("popCorrelation");
+      if (!s1 || !s2) {
+        elm.textContent = ""; //no correlation unless 2 datasets
+        return;
+      }
+
+      const labels1 = s1.labels; //timestamps for s1 and s2
+      const labels2 = s2.labels;
+      const map2 = new Map();
+      labels2.forEach((d, i) => map2.set(d, s2.data[i])); //loop through dataset 2's dates and store with value, to sync dates with dataset 1
+
+      const xs = []; //arrays to hold aligned values. some dates may be missing from certain pages
+      const ys = [];
+      labels1.forEach((d, i) => { //loop through dataset 1 and push dates to xs and ys if also in dataset 2 map
+        if (map2.has(d)) {
+          xs.push(s1.data[i]);
+          ys.push(map2.get(d));
+        }
+      });
+
+      if (xs.length < 10) { //if too few points for meaningful correlation, abandon. 
+        elm.textContent = "";
+        return;
+      }
+
+      const r = pearson(xs, ys); // get ther pearson correlation
+      if (isNaN(r)) { //if garbage value, abandon
+        elm.textContent = "";
+        return;
+      }
+
+      elm.textContent = `Correlation (R): ${r.toFixed(3)}`; //round to 3 decimals
+    }
+
+    function pearson(xs, ys) { //standard pearson correlation function
+      const n = xs.length;
+      let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+      for (let i = 0; i < n; i++) {
+        const x = xs[i];
+        const y = ys[i];
+        sumX += x;
+        sumY += y;
+        sumXY += x * y;
+        sumX2 += x * x;
+        sumY2 += y * y;
+      }
+      const numerator = n * sumXY - sumX * sumY;
+      const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+      if (denominator === 0) return NaN;
+      return numerator / denominator;
+    }
+  </script>
+</body>
+</html>

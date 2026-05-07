@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Deck Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+
+  <style> /*this page will use mostly similar style flashcards from explorer, and modal popouts for larger extracts and editing your cards*/
+  body {
+  background: white;
+}
+
+body.dark-mode {
+  background: #121212;
+  color: #f8f9fa;
+}
+
+body.dark-mode .flashcard {
+  background: #1e1e1e;
+  border-color: #444;
+  color: #f8f9fa;
+}
+
+body.dark-mode .modal-content {
+  background: #1e1e1e;
+  color: #f8f9fa;
+}
+
+body.dark-mode .form-control,
+body.dark-mode .form-select,
+body.dark-mode textarea {
+  background-color: #222;
+  color: #f8f9fa;
+  border-color: #555;
+}
+
+body.dark-mode .navbar .form-check-label {
+  color: #f8f9fa !important;    /*again, need bootstrap overrides, darkmode is fragile in places*/
+}
+
+body.dark-mode .flashcard h6,
+body.dark-mode .flashcard p,
+body.dark-mode .flashcard small,
+body.dark-mode .flashcard span {
+  color: #f8f9fa !important;
+}
+
+.flashcard {
+  flex: 0 0 auto;
+  width: 240px;
+  max-width: 70vw;
+  aspect-ratio: 2 / 3;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: .25rem;
+  padding: .75rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  transition: transform .2s;
+}
+
+.flashcard:hover {
+  transform: translateY(-3px);
+}
+
+.card-front,
+.card-back {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 48px; /* devnote, needed to allow no overlap of previewtext and buttons on cards with no image */
+}
+
+
+.card-content-area { /*devnote- also needed to prevent text and button overlap, fragile*/
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+
+
+.thumb-img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: .25rem;
+  background-color: #ccc;
+}
+
+.button-bar {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  gap: .5rem;
+}
+
+.card-back {
+  display: none;
+}
+
+.deck-row {
+  margin-bottom: 2rem;
+}
+
+.deck-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .5rem;
+}
+
+.scroll-row { /*we have a left right scrolling row for each deck, since we show multiple decks on same page*/
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 1rem;
+  padding-bottom: .5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.collapsed-row {
+  display: none;
+}
+
+.tab-pane {
+  padding-top: 1rem;
+}
+
+  </style>
+</head>
+
+<body onload="loadDeckList();"> <!--preload deck list for selection. decks not immediately shown-->
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top border-bottom">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Deck Manager</a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarContent">
+      <ul class="navbar-nav ms-auto align-items-center">
+
+        <li class="nav-item me-3">
+          <a class="nav-link" href="trending.html">Trending</a>
+        </li>
+
+        <li class="nav-item me-3">
+          <a class="nav-link" href="explorer.html">Explorer</a>
+        </li>
+
+        <li class="nav-item">
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="darkModeToggle"
+                   onchange="toggleDarkMode(this.checked)">
+            <label class="form-check-label small" for="darkModeToggle">Dark Mode</label>
+          </div>
+        </li>
+
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4" style="margin-top:70px;">
+
+  <h1 class="mb-4">Deck Manager</h1>
+
+  <div class="mb-3">
+    <label class="form-label">Select Deck</label>
+    <select id="deckPicker" class="form-select" onchange="openDeck(this.value)"> <!-- select a Deck-->
+      <option value="">— Choose a Deck —</option>
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <button class="btn btn-primary" onclick="createNewDeck()">+ Create New Deck</button>
+  </div>
+
+  <button class="btn btn-outline-secondary mb-3" onclick="clearDeckRows()">Clear All</button>
+
+  <div id="deckContainer"></div>
+
+</div>
+
+<!-- Modal pop out for bigger display and editing cards-->
+<div class="modal fade" id="cardModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Card</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <ul class="nav nav-tabs" id="editTabs">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#frontTab">Front Side</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#backTab">Back Side</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#metaTab">Metadata/Move</button> 
+            <!--devnote Move and Copy buttons should be placed on card or bottom of modal, not in tab. late addition, didn't want to code proper drop down-->
+          </li>
+        </ul>
+
+        <div class="tab-content">
+
+          <div class="tab-pane fade show active" id="frontTab">
+
+            <label class="form-label">Title</label>
+            <input id="editTitle" class="form-control mb-3">
+
+            <label class="form-label">Description</label>
+            <input id="editDescription" class="form-control mb-3">
+
+            <label class="form-label">Short Summary</label>
+            <textarea id="editShortExtract" class="form-control mb-3" rows="3"></textarea>
+
+            <label class="form-label">Image File</label>
+            <input type="file" id="editImage" class="form-control mb-3" onchange="loadNewImage()">
+
+            <label class="form-label">Image URL</label>
+            <input id="editUrl" class="form-control mb-3" oninput="updatePreviewFromUrl()">
+
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <button class="btn btn-sm btn-outline-danger" type="button" onclick="removeImage()">Remove Image</button>
+            </div>
+
+            <img id="editPreview"
+                 class="img-fluid rounded mb-3 bg-light border"
+                 style="max-height:200px; min-height:200px; object-fit:contain;">
+
+          </div>
+
+          <div class="tab-pane fade" id="backTab">
+
+            <label class="form-label">Full Summary</label>
+            <textarea id="editExtract" class="form-control mb-3" rows="8"></textarea>
+
+            <label class="form-label">Notes</label>
+            <textarea id="editNotes" class="form-control mb-3" rows="4"></textarea>
+
+          </div>
+
+          <div class="tab-pane fade" id="metaTab">
+            <!--devnote- If you want the user entered links/categories to be used on the explorer page later, need better input validation to format them-->
+            <label class="form-label">Categories (one per line)</label>
+            <textarea id="editCategories" class="form-control mb-3" rows="4"></textarea>
+
+            <label class="form-label">Links (one per line)</label>
+            <textarea id="editLinks" class="form-control mb-3" rows="4"></textarea>
+
+            <label class="form-label">Move to Deck</label>
+            <select id="moveDeckSelect" class="form-select mb-3"></select>
+
+            <label class="form-label">Copy to Deck</label>
+            <select id="copyDeckSelect" class="form-select mb-3">
+              <option value="">— No Copy —</option>
+            </select>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="deleteCard()">Delete</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button class="btn btn-success" onclick="saveCardChanges()">Save</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+//main state variables
+let currentDeckKey = null; //tracks current selected deck, from menu or when editing/moving
+let currentCardIndex = null; //tracks current card being edited
+let modal = null; //used to hide or show the modal without rebuilding it every time
+
+let pendingImageData = null; //uploaded image waiting to be saved, image loading can be asynchronous and had issues without this
+let imageLoading = false; //boolean for whether image still being processed
+
+//
+function applyDarkMode() {
+  const enabled = localStorage.getItem("darkMode") === "1"; //devnote, localStorage of darkmode status intended as global property across app pages, but need to fix individual styles to work
+  document.body.classList.toggle("dark-mode", enabled);
+  const toggle = document.getElementById("darkModeToggle");
+  if (toggle) toggle.checked = enabled;
+}
+
+function toggleDarkMode(enabled) {  //again, more relevant if we use the global version
+  localStorage.setItem("darkMode", enabled ? "1" : "0");
+  applyDarkMode();
+}
+
+function loadDeckList() { // loads deck list in option drop down, same as explorer page, see explorer.html for comments
+  const picker = document.getElementById("deckPicker");
+  picker.innerHTML = `<option value="">— Choose a Deck —</option>`;
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key.startsWith("deck_")) continue;
+
+    const name = key.replace("deck_", "");
+    const opt = document.createElement("option");
+    opt.value = key;
+    opt.textContent = name;
+    picker.appendChild(opt);
+  }
+}
+
+
+function openDeck(deckKey) { //checks that a deck was passed, prevents duplicating a deck on multiple rows, then loads from localStorage to render
+  if (!deckKey) return;
+  if (document.getElementById("row_" + deckKey)) return;
+
+  const deck = JSON.parse(localStorage.getItem(deckKey)) || [];
+  renderDeckRow(deckKey, deckKey.replace("deck_", ""), deck);
+}
+
+
+function renderDeckRow(deckKey, deckName, deck) {
+  const container = document.getElementById("deckContainer");
+  
+  const row = document.createElement("div");  //create a new row element id'd with deck key
+  row.className = "deck-row";
+  row.id = "row_" + deckKey;
+  //html prep the row, set the span to the number of cards in deck since we will scroll, appends the create or delete card button at end
+  const header = `
+    <div class="deck-header">
+      <div>
+        <strong>${deckName}</strong>
+        <span class="badge bg-secondary">${deck.length} cards</span>
+      </div>
+      <div>
+        <button class="btn btn-sm btn-outline-success" onclick="newCard('${deckKey}')">+ New Card</button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteDeck('${deckKey}')">Delete Deck</button>
+      </div>
+    </div>
+  `;
+
+  row.innerHTML = header; //inserts the header html prep into the row
+
+  const scroll = document.createElement("div"); //creates the scroll row container for the cards
+  scroll.className = "scroll-row";
+  scroll.id = "cards_" + deckKey;
+
+  deck.forEach((card, index) => { //loops through cards, creating the div and rendering them
+    const cardElm = document.createElement("div"); //create individual card div and uses custom flashcard css
+    cardElm.className = "flashcard";
+
+    const img = card.thumbnail //creates thumbnail html, and empty placeholder box if there is no image yet
+      ? `<img src="${card.thumbnail}" class="thumb-img">`
+      : `<div class="thumb-img"></div>`;
+
+    const desc = card.description ? `<p class="small text-muted">${card.description}</p>` : ""; //creates html for sliced description to show, conditional if there is an image or not
+    const preview = !card.thumbnail
+      ? `<p class="small">${(card.shortExtract || "").slice(0, 140)}...</p>`
+      : "";
+    
+    //creates outer card div element, html setup for display. show thumbnail or placeholder if none, title, desciption, and preview text if no image, buttons to flip or edit
+    const front = document.createElement("div");
+    front.className = "card-front";
+    front.innerHTML = `
+      <div class="card-content-area">
+        ${img}
+        <h6>${card.title}</h6>
+        ${desc}
+        ${preview}
+      </div>
+      <div class="button-bar">
+        <button class="btn btn-sm btn-outline-secondary" onclick="flipCard(this)">Flip</button>
+        <button class="btn btn-sm btn-outline-primary" onclick="openCardModal('${deckKey}', ${index})">Edit</button>
+      </div>
+    `;
+
+    //creates outer card div element for back, displays sliced summary text, then flip or edit buttons
+    const back = document.createElement("div");
+    back.className = "card-back";
+    back.innerHTML = `
+      <div class="card-content-area">
+        <h6>Summary</h6>
+        <p class="small">${(card.extract || "").slice(0, 300)}...</p>
+      </div>
+      <div class="button-bar">
+        <button class="btn btn-sm btn-outline-secondary" onclick="flipCard(this)">Back</button>
+        <button class="btn btn-sm btn-outline-primary" onclick="openCardModal('${deckKey}', ${index})">Edit</button>
+      </div>
+    `;
+    //front back elmeents placed in the card element
+    cardElm.appendChild(front);
+    cardElm.appendChild(back);
+    //card placed in scroll container 
+    scroll.appendChild(cardElm);
+  });
+  //scroll placed in row placed in container
+  row.appendChild(scroll);
+  container.appendChild(row);
+}
+
+// card flip. flex displays used on this page to help prevent button overlapping for different card presentation. could be fixed and shared with explorer
+function flipCard(btn) {
+  const cardElm = btn.closest(".flashcard");
+  const front = cardElm.querySelector(".card-front");
+  const back = cardElm.querySelector(".card-back");
+
+  if (front.style.display !== "none") {
+    front.style.display = "none";
+    back.style.display = "flex";
+  } else {
+    back.style.display = "none";
+    front.style.display = "flex";
+  }
+}
+
+//refresh row gets the row element for that deck key, removes and rebuilds it. used to immediately show edited cards without refreshing the page
+function refreshDeckRow(deckKey) {
+  const row = document.getElementById("row_" + deckKey);
+  if (row) row.remove();
+  openDeck(deckKey);
+}
+//create new deck, prevent name duplication. same as explorer page, just separated here as more prominent deck manager ability
+function createNewDeck() {
+  const name = prompt("Deck name:");
+  if (!name) return;
+
+  const key = "deck_" + name;
+  if (localStorage.getItem(key)) {
+    alert("Deck already exists.");
+    return;
+  }
+
+  localStorage.setItem(key, "[]");
+  loadDeckList();
+}
+
+//deletes entire deck from localStorage, with warning, and empties the DOM container
+function deleteDeck(deckKey) {
+  if (!confirm("Delete this deck?")) return;
+  localStorage.removeItem(deckKey);
+  loadDeckList();
+  document.getElementById("deckContainer").innerHTML = "";
+}
+//just clears from page
+function clearDeckRows() {
+  document.getElementById("deckContainer").innerHTML = "";
+}
+
+//allows full creation of a card and its elements, to be placed in given deck 
+function newCard(deckKey) {
+  currentDeckKey = deckKey;
+  currentCardIndex = null; //global variable indicates its a new card
+  //all prior modal elements are cleared and resets image state
+  document.getElementById("editTitle").value = "";
+  document.getElementById("editDescription").value = "";
+  document.getElementById("editShortExtract").value = "";
+  document.getElementById("editExtract").value = "";
+  document.getElementById("editNotes").value = "";
+  document.getElementById("editCategories").value = "";
+  document.getElementById("editLinks").value = "";
+  document.getElementById("editUrl").value = "";
+  document.getElementById("editPreview").src = "";
+  document.getElementById("editImage").value = "";
+  pendingImageData = null;
+  imageLoading = false;
+
+  loadMoveCopySelects(deckKey);
+
+  modal = new bootstrap.Modal(document.getElementById("cardModal")); //open new instance of modal window and swap state to show it
+  modal.show();
+}
+//opens modal window with the loaded info of card at index and with deckkey row
+function openCardModal(deckKey, index) {
+  currentDeckKey = deckKey; //set global state
+  currentCardIndex = index;
+
+  const deck = JSON.parse(localStorage.getItem(deckKey)); // parse the stored JSON deck and get the card
+  const card = deck[index];
+  //populate the elements with card data or empty string if none. note categories and links will be empty as we don't get them except to use on explore page, and aren't stored
+  //devnote. populating full links would be absurd. slice them. also allow user input urls to act as new search links for later epxloring. need to pull deck on explore page too
+  document.getElementById("editTitle").value = card.title;
+  document.getElementById("editDescription").value = card.description || "";
+  document.getElementById("editShortExtract").value = card.shortExtract || "";
+  document.getElementById("editExtract").value = card.extract || "";
+  document.getElementById("editNotes").value = card.notes || "";
+  document.getElementById("editCategories").value = (card.categories || []).join("\n");
+  document.getElementById("editLinks").value = (card.links || []).join("\n");
+  document.getElementById("editUrl").value = card.url || "";
+
+  const preview = document.getElementById("editPreview"); //sets preview to image, or image url, or empty if neither exist
+  if (card.thumbnail && card.thumbnail.trim()) {
+    preview.src = card.thumbnail;
+  } else if (card.url && card.url.trim()) {
+    preview.src = card.url;
+  } else {
+    preview.src = "";
+  }
+
+  document.getElementById("editImage").value = ""; //clear image data and reset image status
+  pendingImageData = null;
+  imageLoading = false;
+
+  loadMoveCopySelects(deckKey);
+  //open new instance of modal window
+  modal = new bootstrap.Modal(document.getElementById("cardModal")); 
+  modal.show();
+}
+
+//loads the deck options to move or copy a card into, preventing current deck from loading. same function as explorer.html, see that for comments
+function loadMoveCopySelects(currentKey) {
+  const moveSelect = document.getElementById("moveDeckSelect");
+  const copySelect = document.getElementById("copyDeckSelect");
+
+  moveSelect.innerHTML = "";
+  copySelect.innerHTML = `<option value="">— No Copy —</option>`;
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key.startsWith("deck_")) continue;
+
+        const name = key.replace("deck_", "");
+
+    const optMove = document.createElement("option");
+    optMove.value = key;
+    optMove.textContent = name;
+    if (key === currentKey) optMove.selected = true;
+    moveSelect.appendChild(optMove);
+
+    const optCopy = document.createElement("option");
+    optCopy.value = key;
+    optCopy.textContent = name;
+    copySelect.appendChild(optCopy);
+  }
+}
+
+//load image from file
+function loadNewImage() {
+  const file = document.getElementById("editImage").files[0]; //get file
+  if (!file) return; //return if none
+
+  imageLoading = true;  //sets global variable to indicate asynchronous read from file
+  const reader = new FileReader(); //native browser file reader to convert file into data url
+
+  reader.onload = function(event) { //in event file data finished loading
+    pendingImageData = event.target.result; // store it into pendingImageData variable
+    imageLoading = false; //async load now complete
+    confirmImageReplace(); //confirm 
+  };
+
+  reader.readAsDataURL(file); //calls the reader to convert the file
+}
+
+//allows update from typed Url of image 
+function updatePreviewFromUrl() {
+  const url = document.getElementById("editUrl").value.trim();
+  if (!url) return;
+
+  pendingImageData = url;
+  confirmImageReplace();
+}
+
+function confirmImageReplace() {
+  const preview = document.getElementById("editPreview");
+
+  if (!pendingImageData) return;
+
+  if (!preview.src || preview.src.trim() === "") { //if preview currently empty, set to new image
+    preview.src = pendingImageData;
+    pendingImageData = null;  //clear pending data
+    return;
+  }
+
+  if (confirm("Replace existing image?")) { //in-built confirm prompt, if yes then replace with new image
+    preview.src = pendingImageData;
+  }
+
+  pendingImageData = null;  //clear pending data
+}
+
+//remoeves image and clears pending data
+function removeImage() {
+  const preview = document.getElementById("editPreview");
+  preview.src = "";
+  document.getElementById("editUrl").value = "";
+  document.getElementById("editImage").value = "";
+  pendingImageData = null;
+}
+
+//save edited card
+function saveCardChanges() {
+  if (imageLoading) { //await image load finish before save
+    alert("Image is still loading. Please wait a moment.");
+    return;
+  }
+
+  const deck = JSON.parse(localStorage.getItem(currentDeckKey)); //get deck from local storage and parse to array we can push to
+
+  const card = { //populate a new card object with from modal of edited card
+    title: document.getElementById("editTitle").value,
+    description: document.getElementById("editDescription").value,
+    shortExtract: document.getElementById("editShortExtract").value,
+    extract: document.getElementById("editExtract").value,
+    notes: document.getElementById("editNotes").value,
+    thumbnail: document.getElementById("editPreview").src || "",
+    url: document.getElementById("editUrl").value,
+    categories: document.getElementById("editCategories").value.split("\n").filter(x => x.trim()),
+    links: document.getElementById("editLinks").value.split("\n").filter(x => x.trim())
+  };
+  //get move and copy targets
+  const targetDeckKey = document.getElementById("moveDeckSelect").value;
+  const copyDeckKey = document.getElementById("copyDeckSelect").value;
+
+  if (currentCardIndex === null) { //insert card if new or update in current deck
+    deck.push(card);
+  } else {
+    deck[currentCardIndex] = card;
+  }
+  //store the edited deck
+  localStorage.setItem(currentDeckKey, JSON.stringify(deck));
+
+  if (targetDeckKey !== currentDeckKey) { //move card if target isn't current deck and refresh target deck
+    moveCardToDeck(card, targetDeckKey);
+    refreshDeckRow(targetDeckKey);
+  }
+
+  if (copyDeckKey) {    //copy if selected and refresh copy deck
+    copyCardToDeck(card, copyDeckKey);
+    refreshDeckRow(copyDeckKey);
+  }
+  //close modal window and refresh current deck. 
+  modal.hide(); 
+  refreshDeckRow(currentDeckKey);
+}
+
+//move card, parse target deck from local storage into array, push the card, re jsonify and return deck to storage. remove from current deck simlarly
+function moveCardToDeck(card, targetKey) {
+  const targetDeck = JSON.parse(localStorage.getItem(targetKey)) || [];
+  targetDeck.push(card);
+  localStorage.setItem(targetKey, JSON.stringify(targetDeck));
+
+  if (currentCardIndex !== null) {
+    const deck = JSON.parse(localStorage.getItem(currentDeckKey));
+    deck.splice(currentCardIndex, 1);
+    localStorage.setItem(currentDeckKey, JSON.stringify(deck));
+  }
+}
+
+//copies card by parsing and re-jsonifying it, creating second entity instead of pointer
+function copyCardToDeck(card, targetKey) {
+  const targetDeck = JSON.parse(localStorage.getItem(targetKey)) || [];
+  const clone = JSON.parse(JSON.stringify(card));
+  targetDeck.push(clone);
+  localStorage.setItem(targetKey, JSON.stringify(targetDeck));
+}
+
+//delete card, confirm first, pull deck from storage, splice out and returns to storage. closes the modal and refreshes deck
+function deleteCard() {
+  if (!confirm("Delete this card?")) return;
+
+  const deck = JSON.parse(localStorage.getItem(currentDeckKey));
+  deck.splice(currentCardIndex, 1);
+  localStorage.setItem(currentDeckKey, JSON.stringify(deck));
+
+  modal.hide();
+  refreshDeckRow(currentDeckKey);
+}
+//devnote - should also add a print, export and load deck from file interface to allow deck sharing
+</script>
+
+</body>
+</html>

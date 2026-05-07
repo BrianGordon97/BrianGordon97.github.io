@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wikipedia Explorer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!--NOTE: styling centers around card displays. Inner text is somewhat fragile to dark mode, modify with caution-->
+<style> 
+:root {
+  --bg-color: #f8f9fa;
+  --card-bg-color: #ffffff;
+  --text-color: #212529;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  padding-top: 70px;
+  overflow-x: hidden;
+}
+
+.flashcard {
+  background-color: var(--card-bg-color);
+  color: var(--text-color);
+  border: 1px solid rgba(0,0,0,0.1);
+  transition: transform 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.flashcard:hover {
+  transform: translateY(-2px);
+}
+
+.card-front, .card-back {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+
+.thumb-img {
+  max-height: 160px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.card-actions {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.navbar-brand {
+  font-weight: 600;
+}
+
+.flashcard,
+.flashcard * {
+  color: var(--text-color) !important; /*important neccessary to override bootstrap for dark mode*/
+}
+
+.flashcard a {
+  color: var(--text-color) !important;
+  text-decoration: underline;
+}
+
+.flashcard .text-muted {
+  color: var(--text-color) !important;
+  opacity: 0.75;
+}
+</style>
+
+</head>
+
+<body onload="initialPage()"> <!--loads an initial deck, either Exoplanets or seed topic if coming from trending page-->
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top border-bottom">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Wiki Explorer</a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarContent">
+      <ul class="navbar-nav ms-auto align-items-center">
+
+        <li class="nav-item me-3">
+          <a class="nav-link" href="trending.html">Trending</a>
+        </li>
+
+        <li class="nav-item me-3">
+          <a class="nav-link" href="deck_manager.html">Deck Manager</a>
+        </li>
+
+        <li class="nav-item">
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="darkModeToggle" onchange="toggleDarkMode(this.checked)">
+            <label class="form-check-label small" for="darkModeToggle">Dark Mode</label>
+          </div>
+        </li>
+
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4">
+
+<h1 id="deckTop" class="mb-3">Wikipedia Explorer</h1>
+
+<div class="row g-3 mb-2">
+  <div class="col-12 col-lg-8">
+    <div class="row g-2 align-items-center">
+      <!--form search bar allows pressing Enter to trigger buildDeckFromInput in addition to button click-->
+      <form class="input-group mb-3" onsubmit="buildDeckFromInput(); return false;"> 
+  <input id="topicInput" class="form-control">
+  <button class="btn btn-primary" type="submit">Search</button>
+</form>
+      <div class="col-sm-4 col-12 d-flex gap-2">
+        <button class="btn btn-primary flex-grow-1" onclick="buildDeckFromInput()">Search</button>
+      </div>
+    </div>
+    <div id="status" class="mt-2 text-muted small"></div>
+  </div>
+</div>
+
+<div class="row mb-3">
+  <div class="col-12 d-flex align-items-center gap-2 flex-wrap">
+
+    <span class="fw-bold">Save To Deck:</span>
+
+    <select id="activeDeckSelect" class="form-select w-auto" onchange="deckChange()"> <!--select menu for decks to save a card to, all cards will save to that deck until changed-->
+      <option value="">-- Select Deck --</option>
+    </select>
+
+    <button class="btn btn-secondary" onclick="goBack()">Back</button>
+
+  </div>
+</div>
+
+<div id="deckContainer" class="row g-3"></div>
+
+<div class="row mt-4">
+  <div class="col-12 text-center">
+    <button id="loadMoreBtn"
+            class="btn btn-outline-primary d-none"
+            onclick="loadMore()">
+      Load More
+    </button>
+  </div>
+</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+const WIKI_API = "https://en.wikipedia.org/w/api.php?origin=*"; //Base api with CORS origin requirement
+const BATCH_SIZE = 50;  // api allows 50 titles in a single call, so the max is used avoid rate limits
+
+// main state variables
+let currentCards = [];  // array of currently displayed cards
+let currentTopic = "";  
+let currentSearchOffset = 0; // offset used to separate batch calls to increase variety of deck
+
+let deckHistory = []; // stack of previous sttes to go back to, only 5 will be saved, so back is limited to 5
+const MAX_HISTORY = 5;
+
+function scrollToDeckTop() {
+  const elm = document.getElementById("deckTop");
+  if (elm) elm.scrollIntoView({ behavior: "smooth", block: "start" }); // safeguard checks the DOM element before processing
+}
+
+function pushHistory() {    // pushes current deck into the 5 deck history for back button use
+  if (!currentTopic || currentCards.length === 0) return;
+
+  deckHistory.push({
+    topic: currentTopic,
+    cards: JSON.parse(JSON.stringify(currentCards)), //makes a deep copy of currentCards, to stay unaffected when it changes
+    offset: currentSearchOffset
+  });
+
+  if (deckHistory.length > MAX_HISTORY) {
+    deckHistory.shift();  // lose the furhest back deck
+  }
+}
+
+function goBack() {
+  if (deckHistory.length === 0) return;
+
+  const previous = deckHistory.pop();
+
+  currentTopic = previous.topic;
+  currentCards = previous.cards;
+  currentSearchOffset = previous.offset; // track the offset to load more works more after going back
+
+  renderDeck(currentCards);
+  document.getElementById("loadMoreBtn").classList.remove("d-none");
+  scrollToDeckTop();
+}
+
+function initialPage() { //builds from a URL seed or default topic
+  loadDeckList();
+ 
+  // pulls seed from the URL if we enter explorer by clicking a topic on the trending page
+  const params = new URLSearchParams(window.location.search); 
+  const seed = params.get("seed");
+
+  if (seed) {
+    const topic = seed.replace(/_/g, " "); // replace url underscore with space to match title requirement
+    document.getElementById("topicInput").value = topic;
+    currentTopic = topic;
+    currentSearchOffset = 0;
+    currentCards = [];
+    buildDeck(topic, false).then(() => {    // false is the append paramater status, true for load more, not build new
+      pushHistory();
+      scrollToDeckTop();
+    });
+    return;
+  }
+
+  document.getElementById("topicInput").value = "Exoplanet"; //default to Exoplanet, because it's safe and pretty
+  currentTopic = "Exoplanet";
+  currentCards = [];
+  buildDeck("Exoplanet", false).then(() => {
+    pushHistory();
+    scrollToDeckTop();
+  });
+}
+
+function setStatus(msg) {   // message under search bar, indicating loading during fetch, failed search or to enter a topic
+  document.getElementById("status").textContent = msg || "";
+}
+
+function truncate(text, maxLen) { //creates shortened preview text. tries to find end of close sentence to not cut off midway
+  if (!text) return "";
+  text = text.trim();
+  if (text.length <= maxLen) return text;
+
+  const cut = text.slice(0, maxLen);
+  const lastPeriod = cut.lastIndexOf(".");
+  const lastSpace = cut.lastIndexOf(" ");
+
+  if (lastPeriod > 50) return cut.slice(0, lastPeriod + 1);
+  if (lastSpace > 50) return cut.slice(0, lastSpace) + " ...";
+  return cut + " ...";
+}
+
+function shuffle(arr) {   // because readers look at top lines more, shuffle to keep new clicks a little different
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Network error"); //.ok checks for network error responses
+  return response.json();
+}
+
+async function getSearchSuggestions(query) { //uses wiki opensearch api to give some input validation and suggestions for typed searches
+  const url = WIKI_API +
+    "&action=opensearch&search=" +
+    encodeURIComponent(query) +
+    "&limit=5&namespace=0&format=json";
+
+  const data = await fetchJson(url);
+  return data[1] || []; //format of the response gives array of search options, or empty array
+}
+
+async function buildDeckFromInput() {
+  const topic = document.getElementById("topicInput").value.trim();
+  if (!topic) return;
+
+  const suggestions = await getSearchSuggestions(topic);  //input validate first
+
+  // if we get exact match load the deck without needing to click a suggestion
+  if (suggestions.includes(topic)) {
+    pushHistory();
+    currentTopic = topic;
+    currentSearchOffset = 0;
+    currentCards = [];
+    document.getElementById("loadMoreBtn").classList.add("d-none");
+    buildDeck(topic, false).then(scrollToDeckTop);
+    return;
+  }
+
+  // if no suggestions, search fails and we send message
+  if (suggestions.length === 0) {
+    setStatus("No matching Wikipedia pages found.");
+    return;
+  }
+
+  // display the suggestions
+  const deckContainer = document.getElementById("deckContainer");
+  //we loop through the suggestions, $ template literal interpolation to avoid string concatenation and global replace ' to not break the js string inside the onclick, 
+  // and then dispalying suggestions
+  deckContainer.innerHTML = `
+    <div class="col-12">
+      <h5>Did you mean:</h5>
+      ${suggestions.map(s => `   
+        <button class="btn btn-outline-primary btn-sm m-1"
+                onclick="selectSuggestion('${s.replace(/'/g, "\\'")}')">
+          ${s}
+        </button>
+      `).join("")}
+    </div>
+  `;
+
+  setStatus("Select one of the suggested pages.");
+  return;   // dev note- removing return here will autocomplete first suggestion and not show the rest
+}
+
+
+function selectSuggestion(title) {
+  pushHistory();
+  currentTopic = title;
+  currentSearchOffset = 0;
+  currentCards = [];
+  document.getElementById("loadMoreBtn").classList.add("d-none");
+  buildDeck(title, false).then(scrollToDeckTop);
+}
+
+async function buildDeck(topic, append) {   // builds and displays deck. append is boolean, only true if load more was clicked
+  try {  // try wrapping is much safer for batch calling as it prevents one bad element from breaking things
+    setStatus('Building deck for "' + topic + '" ...');
+
+    if (!append) {
+      currentCards = [];   // clears old deck, prevents memory leak
+      const deckContainer = document.getElementById("deckContainer");
+      deckContainer.innerHTML = "";
+    }
+
+    const searchQuery = topic;
+
+    const batchPromises = []; //array for batched promises
+    for (let i = 0; i < 3; i++) { //dev note- we do 3 batches of 50 for variety. dropping to 1 works with lower api calls, less variety
+      const params = new URLSearchParams({ //follows the wiki action api format for search
+        action: "query",
+        list: "search",
+        srsearch: searchQuery, // search topic 
+        srlimit: BATCH_SIZE.toString(), //search size
+        sroffset: (currentSearchOffset + i * BATCH_SIZE).toString(), //where to pull results from the the in built response
+        format: "json"
+      });
+      batchPromises.push(fetchJson(WIKI_API + "&" + params.toString())); //creates the fetchable batch strings and places in array
+    }
+
+    const batchResults = await Promise.all(batchPromises);  // calls all batches from wiki action api search endpoint
+
+    let searchResults = []; //create result array, loop through the batches and combines all results into one array using concatenation
+    batchResults.forEach(b => {
+      if (b.query && b.query.search) { //prevents broken batch results from stopping everything
+        searchResults = searchResults.concat(b.query.search);
+      }
+    });
+
+    const categoryParams = new URLSearchParams({ // to build query paramaters for url call of wiki action api categorymembers endpoint
+      action: "query",
+      list: "categorymembers",
+      cmtitle: "Category:" + topic.replace(/ /g, "_"),
+      cmlimit: BATCH_SIZE.toString(),
+      format: "json"
+    });
+
+    const categoryData = await fetchJson(WIKI_API + "&" + categoryParams.toString()); // calls the wiki action api categorymembers endpoint
+    const categoryMembers = (categoryData.query && categoryData.query.categorymembers) || []; //creates the return array if api retruns category members
+
+    //move titles into map to separate out unique titles, avoid duplication. combines search resuls and category results into same object
+    const titleMap = {}; 
+    searchResults.forEach(item => { titleMap[item.title] = true; });
+    categoryMembers.forEach(item => { titleMap[item.title] = true; });
+
+    let titles = Object.keys(titleMap); // object containing unique titles, or no titles if no results found
+    if (!titles.length) {
+      setStatus("No results found.");
+      return;
+    }
+
+    titles = shuffle(titles).slice(0, BATCH_SIZE);  // randomize and take only 50, to limit size and prevent clustering
+
+    const pagesParams = new URLSearchParams({   // for wiki action api query/pages endpoint, requresting info type- summary extract, image, etc. 
+      action: "query",
+      prop: "extracts|pageimages|description|categories|links",
+      exintro: "1",
+      explaintext: "1",
+      piprop: "thumbnail",
+      pithumbsize: "300",
+      redirects: "1",
+      converttitles: "1",
+      normalize: "0",
+      cllimit: "50",
+      pllimit: "50",
+      titles: titles.join("|"),
+      format: "json"
+    });
+
+    const pagesData = await fetchJson(WIKI_API + "&" + pagesParams.toString()); //calls wiki ation api query/pages  endpoint
+    const pages = (pagesData.query && pagesData.query.pages) || {}; // fall back to empty if doesn't return
+    const newCards = []; //to hold display cards
+
+    // loop through the pages by returned id, returns the page object unless it failed or has no extract (filters garbage wiki pages or disambiguations, etc), pushes into newCards array
+    Object.keys(pages).forEach(id => {
+      const p = pages[id];
+      if (!p || !p.extract) return;
+
+      newCards.push({ //pushes card with page info into deck, leaving empty "" if the page call didn't return thumbnail, description etc. 
+        title: p.title,
+        description: p.description || "",
+        extract: p.extract,
+        thumbnail: p.thumbnail ? p.thumbnail.source : "",
+        url: "https://en.wikipedia.org/?curid=" + p.pageid,
+        categories: (p.categories || []).map(c => c.title.replace("Category:", "")), //remove the "Category: " from category members 
+        links: (p.links || []).map(l => l.title) //plain text links from the outgoing links returned
+      });
+    });
+
+    if (!newCards.length) {
+      setStatus("No more cards to load.");
+      return;
+    }
+
+    currentCards = append ? currentCards.concat(newCards) : newCards; //separating load more call vs new deck
+
+    renderDeck(currentCards);
+
+    setStatus("");
+
+    document.getElementById("loadMoreBtn").classList.remove("d-none");
+
+  } catch (error) {
+    console.error(error);
+    setStatus("Error building deck.");
+  }
+}
+
+function loadMore() {   //only to append more cards below
+  if (!currentTopic) return;
+  currentSearchOffset += 3 * BATCH_SIZE;  // //move offset past our 3 batch calls so that loading more another time will search new cards
+  buildDeck(currentTopic, true);  
+}
+
+function renderDeck(cards) {
+  const deckContainer = document.getElementById("deckContainer"); 
+  deckContainer.innerHTML = ""; //clears container before rendering new cards
+  cards.forEach((card, index) => renderCard(card, index)); //loop to render caards inividually
+}
+
+function renderCard(card, index) {
+  const deckContainer = document.getElementById("deckContainer");
+
+  const col = document.createElement("div");  //create column div, 1 card per row in mobile, 2 for small, 3 for larger screens
+  col.className = "col-12 col-sm-6 col-md-4";
+
+  const cardElm = document.createElement("div"); // for outer card element
+  cardElm.className = "card flashcard"; //custom card css
+  cardElm.id = "card-" + index;   //indexed
+  cardElm.dataset.side = "front"; // side attribute
+
+  const previewText = !card.thumbnail   // display portion of extract if there's no image
+    ? `<p class="small mb-2">${truncate(card.extract, 160)}</p>`
+    : "";
+
+  // front of card displays title, then decription, thumbnail or some extract, then buttons top to bottom. images use lazy load to save memory
+  const front = `
+    <div class="card-body card-front" id="front-${index}">
+      <h5 class="card-title">${card.title}</h5>
+      ${card.description ? `<p class="text-muted mb-2">${card.description}</p>` : ""}
+      ${card.thumbnail
+        ? `<img src="${card.thumbnail}" loading="lazy" class="img-fluid rounded mb-2 thumb-img">`
+        : previewText}
+      <div class="card-actions mt-2">
+        <button class="btn btn-sm btn-outline-primary" onclick="flipCard(${index})">Show Summary</button>
+        <button class="btn btn-sm btn-outline-success" onclick="exploreMore(${index})">Explore More Like This</button>
+        <button class="btn btn-sm btn-outline-info" onclick="exploreLinks(${index})">Explore Links</button>
+        <button class="btn btn-sm btn-outline-warning" onclick="toggleSaveCard(${index}, this)">Save</button>
+      </div>
+    </div>
+  `;
+  // back of card displays Summary and up to 240 characters (works for most wiki extracts) and same links except back button. repeats summary if no image
+  const back = `
+    <div class="card-body card-back d-none" id="back-${index}">
+      <h6 class="card-subtitle mb-2 text-muted">Summary</h6>
+      <p class="card-text" style="font-size:0.9rem;">${truncate(card.extract, 420)}</p>
+      <a href="${card.url}" target="_blank" class="small">Read full article</a>
+      <div class="card-actions mt-3">
+        <button class="btn btn-sm btn-outline-secondary" onclick="flipCard(${index})">Back</button>
+        <button class="btn btn-sm btn-outline-success" onclick="exploreMore(${index})">Explore More Like This</button>
+        <button class="btn btn-sm btn-outline-info" onclick="exploreLinks(${index})">Explore Links</button>
+        <button class="btn btn-sm btn-outline-warning" onclick="toggleSaveCard(${index}, this)">Save</button>
+      </div>
+    </div>
+  `;
+  //put the attributes into the card element, the card into the column and the column into the container
+  cardElm.innerHTML = front + back;
+  col.appendChild(cardElm);
+  deckContainer.appendChild(col);
+}
+
+function flipCard(index) {    // flips card at index
+  const cardElm = document.getElementById("card-" + index);
+  if (!cardElm) return;
+
+  const front = document.getElementById("front-" + index);
+  const back = document.getElementById("back-" + index);
+  if (cardElm.dataset.side === "front") {
+    cardElm.dataset.side = "back";
+    front.classList.add("d-none");
+    back.classList.remove("d-none");
+  } else {
+    cardElm.dataset.side = "front";
+    back.classList.add("d-none");
+    front.classList.remove("d-none");
+  }
+}
+
+function exploreMore(index) { //uses the card at index to create new seed for building or loading topic, generate new cards
+  pushHistory();  // saves current cards for back button access
+
+  const card = currentCards[index];
+  if (!card) return; //shouldn't happen since it requires button click on existing card, but better to be safe when swapping decks repeatedly
+
+  const seeds = [ // array of seed terms consisting of 
+    card.title,     //title 
+    ...(card.categories || []).slice(0, 5),   // spread first 5 category titles into array (no nesting), if they exist
+    ...(card.links || []).slice(0, 5) //spread first 5 outgoing links into array if they exist
+  ].filter(Boolean); // safety check all strings are valid
+
+  if (!seeds.length) { // if array empty or other categories and links don't exist, then clear cards, reset offset and just build a new deck from the index card title
+    currentTopic = card.title;
+    currentSearchOffset = 0;
+    currentCards = [];
+    buildDeck(card.title, false).then(scrollToDeckTop);
+    return;
+  }
+//uses random to select a single topic from that seed, floor to get integer, update topic, reset offset, clear old cards build deck and scroll up to see them
+  const newTopic = seeds[Math.floor(Math.random() * seeds.length)];
+  currentTopic = newTopic;
+  currentSearchOffset = 0;
+  currentCards = [];
+  buildDeck(newTopic, false).then(scrollToDeckTop);
+}
+
+async function exploreLinks(index) { //uses both outgoing and backlinks of card at index to create new deck
+  pushHistory();  
+
+  const card = currentCards[index];
+  if (!card) return;
+
+  setStatus('Exploring links for "' + card.title + '" ...');
+
+  try {
+    const [outgoing, backlinks] = await Promise.all([ //build array of linkks by fetching full outgoing and backlinks.
+      fetchOutgoingLinks(card.title), 
+      fetchBacklinks(card.title)
+    ]);
+
+        const titleMap = {};  //create set object to filter out duplicated links via titles. loops through all outgoing and backlinks, placing unique titles into set
+    (outgoing || []).forEach(t => { titleMap[t] = true; });
+    (backlinks || []).forEach(t => { titleMap[t] = true; });
+
+    let titles = Object.keys(titleMap).filter(t => t && t !== card.title); //creates array o those unique titles, removing the original card
+
+    if (!titles.length) {       //catch if no links
+      setStatus("No links found for this page.");
+      return;
+    }
+
+    titles = shuffle(titles).slice(0, BATCH_SIZE);
+
+    currentTopic = card.title + " (links)";   //update topic, reset offset, clear current deck, await the build and scroll to top
+    currentSearchOffset = 0;
+    currentCards = [];
+
+    await buildDeckFromTitles(titles);
+    scrollToDeckTop();
+
+    setStatus("");
+  } catch (error) { //catch if call fails
+    console.error(error);
+    setStatus("Error exploring links.");
+  }
+}
+
+async function fetchOutgoingLinks(title) { //gets outgoing link list via wiki action api prop=links endpoint
+  const params = new URLSearchParams({
+    action: "query",
+    prop: "links",
+    titles: title,
+    pllimit: "max",
+    format: "json"
+  });
+//calls the wiki action api links endpoint, extract link titles and return array of them
+  const data = await fetchJson(WIKI_API + "&" + params.toString()); 
+  const pages = (data.query && data.query.pages) || {};
+  const ids = Object.keys(pages);
+  if (!ids.length) return [];
+  const p = pages[ids[0]];
+  const links = p.links || [];
+  return links.map(l => l.title).filter(Boolean);
+}
+
+async function fetchBacklinks(title) { // fetches backlinks of title using wiki action api list=backlinks endpoint
+  const params = new URLSearchParams({
+    action: "query",
+    list: "backlinks",
+    bltitle: title,
+    bllimit: "max",
+    format: "json"
+  });
+  //call the api and extracts titles, places into backlinks array
+  const data = await fetchJson(WIKI_API + "&" + params.toString());
+  const backlinks = (data.query && data.query.backlinks) || [];
+  return backlinks.map(b => b.title).filter(Boolean);
+}
+
+async function buildDeckFromTitles(titles) { // populates cards with info using batch call to wiki action api query endpoint with multiple parameters
+  if (!titles || !titles.length) return;
+
+  titles = titles.slice(0, BATCH_SIZE); // keep only 50
+
+  const pagesParams = new URLSearchParams({ //constructs proper parametet setup for url string 
+    action: "query",
+    prop: "extracts|pageimages|description|categories|links",
+    exintro: "1",
+    explaintext: "1",
+    piprop: "thumbnail",
+    pithumbsize: "300",
+    redirects: "1",
+    converttitles: "1",
+    normalize: "0",
+    cllimit: "50",
+    pllimit: "50",
+    titles: titles.join("|"),
+    format: "json"
+  });
+
+  const pagesData = await fetchJson(WIKI_API + "&" + pagesParams.toString()); //calls wiki action api for that info
+  const pages = (pagesData.query && pagesData.query.pages) || {}; //pull out returned pages
+  const newCards = [];  //array for new cards
+
+  Object.keys(pages).forEach(id => {    //loop through pages, remove those without summary extract
+    const p = pages[id];
+    if (!p || !p.extract) return;
+
+    newCards.push({     //populate card with extracted data and push into newCards array
+      title: p.title,
+      description: p.description || "",
+      extract: p.extract || "",
+      thumbnail: p.thumbnail ? p.thumbnail.source : "",
+      url: "https://en.wikipedia.org/?curid=" + p.pageid,
+      categories: (p.categories || []).map(c => c.title.replace("Category:", "")),
+      links: (p.links || []).map(l => l.title)
+    });
+  });
+
+  if (!newCards.length) {
+    setStatus("No cards could be built from links.");
+    return;
+  }
+
+  currentCards = newCards;
+  renderDeck(currentCards); //call render to display
+}
+
+function loadDeckList() {  //loads deck list in save button menu. decks will be saved to local storage and accessed/edit on deck_manager page
+  const select = document.getElementById("activeDeckSelect");
+  const currentValue = select.value;
+
+  select.innerHTML = `
+    <option value="">-- Select Deck --</option>
+  `;
+
+  for (let i = 0; i < localStorage.length; i++) { //loop through local storag
+    const key = localStorage.key(i);
+    if (key.startsWith("deck_")) {  //look for deck keys
+      const name = key.replace("deck_", "");  //remove "deck" prefix to get the name of deck
+      const opt = document.createElement("option"); //create option element for drop down menu
+      opt.value = key;  //set element value to that full localStorage key, eg deck_Planets
+      opt.textContent = name; //visible text is just the nam
+      select.appendChild(opt);  //add the option to the selector
+    }
+  }
+  // create a new deck option appended to menu
+  const newOpt = document.createElement("option");
+  newOpt.value = "__new__";
+  newOpt.textContent = "+ Create New Deck ";
+  select.appendChild(newOpt);
+
+  if ([...select.options].some(o => o.value === currentValue)) {  //since we rebuild the list, need to check the current selected option is still there and re-select if so
+    select.value = currentValue;
+  }
+}
+
+function deckChange() { //changes save deck to selected option, or to new option after it is named
+  const select = document.getElementById("activeDeckSelect");
+  const value = select.value;
+
+  if (value === "__new__") {
+    const name = prompt("Enter a name for the new deck:");
+    if (!name) {
+      select.value = "";  // set to no selection if they cancel or enter no name
+      return;
+    }
+
+    const key = "deck_" + name; //build key for localStorage of new deck
+
+    if (localStorage.getItem(key)) {  //prevent duplicated deck titles
+      alert("A deck with that name already exists.");
+      select.value = "";
+      return;
+    }
+    //create new localStorage array for deck, reload the deck list and select that new deck
+    localStorage.setItem(key, "[]");
+    loadDeckList();
+    select.value = key;
+  }
+}
+//savetoggle click button on card to save it to selected deck, or click again to remove. *devnote - if returning to the page with a card already in deck, clicking save
+//may remove it without user knowing. should check to ensure return visits don't delete cards. i'm too tired to fix it now. 
+function toggleSaveCard(index, btn) { 
+  let deckKey = document.getElementById("activeDeckSelect").value;
+
+  if (!deckKey) { // forces user back up to select deck if trying to save without one. 
+    alert("Select a deck first.");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+
+  let deck; //look up deck in local storage, parse its json into array of existing cards
+  try { 
+    deck = JSON.parse(localStorage.getItem(deckKey) || "[]");
+  } catch {
+    deck = [];
+  }
+
+  const c = currentCards[index];
+
+  const fullCard = { //create JS object of that card info  
+    title: c.title || "",
+    description: c.description || "",
+    shortExtract: c.extract ? c.extract.slice(0, 160) : "",
+    extract: c.extract || "",
+    thumbnail: c.thumbnail || "",
+    url: c.url || "",
+    categories: c.categories || [],
+    links: c.links || [],
+    notes: ""
+  };
+  //push into the array, re jsonify it and place deck back in local storage
+  deck.push(fullCard); 
+  localStorage.setItem(deckKey, JSON.stringify(deck));
+
+  btn.textContent = "Saved";  
+  btn.classList.remove("btn-outline-warning");
+  btn.classList.add("btn-success");
+}
+
+function toggleDarkMode(enabled) { //devnote don't touch unless you like breaking things
+  if (enabled) {
+    document.documentElement.style.setProperty("--bg-color", "#121212");
+    document.documentElement.style.setProperty("--card-bg-color", "#1e1e1e");
+    document.documentElement.style.setProperty("--text-color", "#f8f9fa");
+  } else {
+    document.documentElement.style.setProperty("--bg-color", "#f8f9fa");
+    document.documentElement.style.setProperty("--card-bg-color", "#ffffff");
+    document.documentElement.style.setProperty("--text-color", "#212529");
+  }
+}
+</script>
+</body>
+</html>
